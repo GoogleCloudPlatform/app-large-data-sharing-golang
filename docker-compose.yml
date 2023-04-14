@@ -1,0 +1,49 @@
+version: '3.9'
+services:
+  api:
+    container_name: lds-api
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    environment:
+      - LDS_REST_PORT=${LDS_REST_PORT}
+      - LDS_PROJECT=${LDS_PROJECT}
+      - LDS_BUCKET=${LDS_BUCKET}
+      - LDS_RESOURCE_PATH=${LDS_RESOURCE_PATH}
+    ports:
+      - ${LDS_REST_PORT}:${LDS_REST_PORT}
+    networks:
+      - lds
+    volumes:
+      - ${HOME}/.config/gcloud:/root/.config/gcloud
+      
+  api-mock:
+    container_name: lds-api-mock
+    build:
+      context: ./api
+      dockerfile: Dockerfile_mock
+    environment:
+      - LDS_REST_PORT=${LDS_REST_PORT}
+      - LDS_RESOURCE_PATH=${LDS_RESOURCE_PATH}
+      - MOCK=true
+    ports:
+      - 8001:${LDS_REST_PORT}
+    networks:
+      - lds
+
+  web:
+    container_name: lds-web
+    build:
+      context: ./frontend
+    environment:
+      - LDS_REST_URL=${LDS_REST_URL}
+    ports:
+      - '8080:80'
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - lds
+
+networks:
+  lds:
+    driver: bridge

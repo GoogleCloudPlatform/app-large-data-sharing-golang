@@ -1,0 +1,37 @@
+.file-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.remove-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: red;
+}
+
+.tags-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tags-container {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+

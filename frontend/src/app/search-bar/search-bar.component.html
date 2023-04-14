@@ -1,0 +1,35 @@
+<div *ngIf="formGroup" [formGroup]="formGroup" class="flex">
+  <mat-chip-grid #chipGrid aria-label="Enter tags" class="w-11/12 relative">
+    <mat-chip-row *ngFor="let tag of tags"
+      (removed)="removeTag(tag)"
+      [editable]="false">
+      {{ tag }}
+      <button matChipRemove [attr.aria-label]="'remove ' + tag">
+        <hero-icon name="x-circle" type="solid" class="w-4 h-4"></hero-icon>
+      </button>
+    </mat-chip-row>
+    <input placeholder="Search tags, i.e. Seperate tags with space." maxlength="100" id="price" name="price" type="text"
+      (keydown.enter)="searchTags()" formControlName="tags"
+      class="block w-full outline-none rounded-l pr-10 border border-indigo-100 px-5 py-3 focus:border border-indigo-100-indigo-500 focus:ring-indigo-500 sm:text-sm"
+      [matChipInputFor]="chipGrid"
+      [matChipInputSeparatorKeyCodes]="separatorKeysCodes"
+      [matChipInputAddOnBlur]="true"
+      (matChipInputTokenEnd)="addTags($event)"/>
+      <button
+        *ngIf="tags.length"
+        type="button"
+        class="absolute right-0 p-2.5 px-5 top-0 text-gray-500 hover:text-red-400"
+        (click)="clearTag()"
+        >
+        ✕
+      </button>
+
+  </mat-chip-grid>
+  <button
+  title="search"
+  (click)="clickSearchTags()"
+  class="w-1/12 bg-amber-500 hover:bg-amber-400 text-white font-bold py-2 px-4 text-xs text-center"
+>
+  <hero-icon name="search" class="h-7 mx-auto"></hero-icon>
+</button>
+</div>
