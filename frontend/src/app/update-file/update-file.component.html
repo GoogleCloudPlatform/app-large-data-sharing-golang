@@ -91,14 +91,15 @@
       <div class="flex justify-end">
         <button
           (click)="closeModal($event)"
+          [disabled]="isUpdating"
           class="border border-gray-500 text-gray-500 px-4 py-2 rounded hover:bg-gray-500 hover:text-black"
         >
           Cancel
         </button>
         <button
         (click)="triggerFileInput()"
-        [disabled]="selectedFiles.length > 1"
-        class="bg-blue-500 text-white px-4 py-2 rounded ml-2 relative min-w-[60px] hover:bg-blue-400"
+        [disabled]="selectedFiles.length > 1 || isUpdating"
+        class="bg-blue-500 text-white px-4 py-2 rounded ml-2 relative min-w-[60px] hover:bg-blue-400 disabled:bg-gray-500"
       >
         Edit File
       </button>
@@ -107,15 +108,21 @@
       type="file"
       class="hidden"
       multiple
-      [disabled] = "selectedFiles.length > 1"
+      [disabled]="selectedFiles.length > 1"
       (change)="addFiles($event)"
       placeholder="Add Files"
     />
         <button
+          [disabled]="isUpdating"
           (click)="update()"
           class="bg-amber-500 text-white px-4 py-2 rounded ml-2 hover:bg-amber-400 relative min-w-[60px] disabled:bg-gray-500"
         >
-          Update
+        <span
+        *ngIf="isUpdating"
+        class="animate-spin w-4 h-4 border-t-2 border-l-2 border-white rounded-full absolute inset-0 m-auto"
+        ></span>
+        <ng-container *ngIf="!isUpdating">Update</ng-container>
+
         </button>
       </div>
     </div>

@@ -12,6 +12,9 @@ import { HttpClient } from '@angular/common/http';
 import { Validators, FormBuilder } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MainService } from '../service/main.service';
+import { fromEvent } from 'rxjs';
+import { map, tap } from 'rxjs/operators';
+
 
 @Component({
   selector: 'app-update-file',
@@ -29,6 +32,7 @@ export class UpdateFileComponent implements OnChanges {
   updateTags: string[] = [];
   uploadInProgress: boolean = false;
   showHint: boolean = false;
+  isUpdating: boolean = false;
 
   @ViewChild('fileInput') fileInput!: ElementRef;
   @Input() updateItem!: any;
@@ -51,6 +55,26 @@ export class UpdateFileComponent implements OnChanges {
       this.selectedFiles = [currentValue];
     }
   }
+  readURL(event:any) {
+    if (event.target.files && event.target.files[0]) {
+      var reader = new FileReader();
+
+      reader.onload = (event:any) => {
+       this.updateItem.url = event.target.result;
+      }
+
+      reader.readAsDataURL(event.target.files[0]);
+    }
+  }
+  ngAfterViewInit() {
+    fromEvent(this.fileInput.nativeElement, 'change').pipe(
+      map((event: any) => event.target.files[0]),
+      tap((file: any) => {
+        this.readURL(event);
+        this.updateItem.name = file.name;
+      })
+    ).subscribe();
+  }
 
   alertBar() {
     this._snackBar.open('You can only select one file.', '', {
@@ -65,13 +89,16 @@ export class UpdateFileComponent implements OnChanges {
     this.selectedFiles.forEach((files) => {
       formData.append('file', files);
     });
+    this.isUpdating = true;
     this.http.put(`api/files/${this.updateItem.id}`, formData).subscribe(
       res => {
+        this.isUpdating = false;
         this.fileForm.reset();
         this.updateImg.emit(res);
         this.closeFileUpdate.emit();
       },
       err => {
+        this.isUpdating = false;
         if (err.status === 404) {
           alert('The file you are trying to upload/update does not exist. Please update/upload a correct file.');
         } else if (err.status === 413) {
