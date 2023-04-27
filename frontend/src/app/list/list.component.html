@@ -19,7 +19,7 @@
     </div>
 
     <ng-container *ngIf="list$ | async as listData">
-    <ng-container *ngIf="listData?.length > 0; else nodata">
+    <ng-container *ngIf="listData.length > 0; else nodata">
       <div class="grid grid-cols-5 justify-between text-white">
         <div
           class="group shadow shadow-slate-700 rounded text-center relative overflow-hidden bg-slate-400 mx-1 my-1 max-h-[300px]"

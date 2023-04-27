@@ -24,24 +24,30 @@ export class MainService {
     this.tags = [];
     this.tagsSubject.next(this.tags);
   }
-  checkFileType(fileName: string) {
-    if (!fileName) {
+  checkFileType(singleFilename: string) {
+    if (!singleFilename) {
       return 'unknown';
     }
-    const fileExtension = (fileName.toLowerCase().split('.').pop() ?? '');
+    const fileExtension = (singleFilename.toLowerCase().split('.').pop() ?? '');
 
-    const photoExtensions = ['jpg', 'jpeg', 'png', 'bmp', 'gif'];
-    const videoExtensions = ['mp4', 'mkv', 'avi', 'flv', 'wmv', 'mov'];
-    const pdfExtension = 'pdf';
-
-    if (photoExtensions.includes(fileExtension)) {
-      return 'photo';
-    } else if (videoExtensions.includes(fileExtension)) {
-      return 'video';
-    } else if (fileExtension === pdfExtension) {
-      return 'pdf';
-    } else {
-      return 'unknown';
+    switch(fileExtension) {
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'bmp':
+      case 'gif':
+        return 'photo';
+      case 'mp4':
+      case 'mkv':
+      case 'avi':
+      case 'flv':
+      case 'wmv':
+      case 'mov':
+        return 'video';
+      case 'pdf':
+        return 'pdf';
+      default:
+        return 'unknown';
     }
   }
 }

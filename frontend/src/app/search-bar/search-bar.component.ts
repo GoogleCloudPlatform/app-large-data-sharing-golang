@@ -11,7 +11,7 @@ import { Subscription } from 'rxjs';
   styleUrls: ['./search-bar.component.scss']
 })
 export class SearchBarComponent {
-  @Output() clicked: EventEmitter<any> = new EventEmitter();
+  @Output() clicked: EventEmitter<ClickedEvent> = new EventEmitter();
   @Input() formGroup: FormGroup | undefined;
   tags: string[] = [];
   private tagsSubscription: Subscription = new Subscription;
@@ -64,4 +64,9 @@ export class SearchBarComponent {
     }
   }
 
+}
+
+type ClickedEvent = {
+  eventName: string;
+  tags: string[];
 }

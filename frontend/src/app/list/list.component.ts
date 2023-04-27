@@ -18,10 +18,10 @@ export class ListComponent {
   tags: string[] = [];
   private tagsSubscription: Subscription = new Subscription;
   showUpdate: boolean = false;
-  updateItem: any;
+  updateItem: FileModel | null = null; 
   deleteId: string = '';
   private fileSubject = new Subject<FileModel[]>();
-  list$: Observable<any> = of([]);
+  list$: Observable<FileModel[]> = of([]);
   listArr: FileModel[] = [];
   fileForm = this.fb.group({
     files: ['', Validators.required],
@@ -91,9 +91,7 @@ export class ListComponent {
     this.onUploadFile = !this.onUploadFile;
     this.onUploadFile ? document.body.style.overflow = "hidden" : document.body.style.overflow = "auto";
     if (uploadSucess) {
-      /* NEED TO CHANGE after service done
-       * need to clear ${this.tags} and resfresh homePage if upload is suscess
-       */
+      // clear ${this.tags} and resfresh homePage if upload is suscess
       this.refreshHome();
     }
   }
@@ -101,10 +99,9 @@ export class ListComponent {
     this.clearTag();
     this.searchTags();
   }
-  selectUpdate(item: string) {
+  selectUpdate(item: FileModel) {
     this.updateItem = item;
     this.showUpdate = true;
-
   }
   searchTags(showMore: boolean = false, clear: boolean = true) {
     this.showLoader = true;

@@ -19,7 +19,7 @@ import { DOCUMENT } from '@angular/common';
 export class ViewComponent {
   isOpen:boolean = false
   showUpdate: boolean = false;
-  updateItem:any;
+  updateItem: FileModel | null = null;
   deleteId: string = '';
   private fileSubject = new Subject<FileModel[]>();
   list$: Observable<null | any> = of([]);
@@ -30,7 +30,7 @@ export class ViewComponent {
   })
   showLoader:boolean = true;
   showConfirmDialog:boolean = false;
-  viewData:any;
+  viewData = this.session.getImageData();
   imgId:any
   onUploadFile: boolean = false;
   tags: string[] = [];
@@ -59,14 +59,6 @@ export class ViewComponent {
       this.imgId = paramMap.imgId;
     });
     this.viewData = this.session.getImageData();
-    const sizeInBytes = this.viewData.size;
-    const sizeInKb = sizeInBytes / 1024;
-    const sizeInMb = sizeInBytes / 1024 / 1024;
-
-    const size = sizeInMb >= 1 ? `${Math.round((sizeInMb + Number.EPSILON) * 100) / 100} MB`
-                              : `${Math.round((sizeInKb + Number.EPSILON) * 100) / 100} KB`;
-
-    this.viewData.size = size;
     if(this.viewData && this.viewData.url) {
       this.viewData = this.viewData || {};
 
@@ -83,6 +75,16 @@ export class ViewComponent {
       console.error('Error: Invalid image URL');
     }
 
+  }
+
+  getFileSize(file: FileModel): string {
+    const sizeInBytes = file.size;
+    const sizeInKb = sizeInBytes / 1024;
+    const sizeInMb = sizeInBytes / 1024 / 1024;
+
+    const size = sizeInMb >= 1 ? `${Math.round((sizeInMb + Number.EPSILON) * 100) / 100} MB`
+                              : `${Math.round((sizeInKb + Number.EPSILON) * 100) / 100} KB`;
+    return size;
   }
 
   ngAfterViewInit(){
@@ -103,7 +105,7 @@ export class ViewComponent {
   }
 
 
-  selectUpdate(item: string) {
+  selectUpdate(item: FileModel) {
     this.updateItem = item;
     this.showUpdate = true;
   }
@@ -129,12 +131,6 @@ export class ViewComponent {
       this.http.delete(`/api/files/${id}`).subscribe(res => {
         this.showConfirmDialog = false;
         this.deleteId = '';
-        // const newFileArr = this.listArr;
-        // const index = newFileArr.findIndex((file) => file.id === id);
-        // if (index >= 0) {
-          // newFileArr.splice(index,1);
-          // this.fileSubject.next([...newFileArr]);
-        // }
         this.router.navigate(['list/']);
       },
       err => {

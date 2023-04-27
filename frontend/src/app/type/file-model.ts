@@ -8,4 +8,6 @@ export interface FileModel {
   url: string;
   updateTime: string;
   orderNo: string;
+  size: number;
+  resolution?: string
 }
