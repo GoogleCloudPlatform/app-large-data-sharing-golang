@@ -21,7 +21,10 @@ type config struct {
 var Config config
 
 func init() {
-	mockFlag, _ := strconv.ParseBool(os.Getenv("MOCK"))
+	mockFlag, err := strconv.ParseBool(os.Getenv("MOCK"))
+	if err != nil {
+		log.Fatal("can't get environment variable \"MOCK\"")
+	}
 	if mockFlag {
 		log.Println("enable mock mode!")
 	}

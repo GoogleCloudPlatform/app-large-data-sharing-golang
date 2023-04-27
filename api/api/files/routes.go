@@ -15,14 +15,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cienet/ldsgo/config"
-	"github.com/cienet/ldsgo/gcp/bucket"
-	"github.com/cienet/ldsgo/gcp/firestore"
+	"google/jss/ldsgo/config"
+	"google/jss/ldsgo/gcp/bucket"
+	"google/jss/ldsgo/gcp/firestore"
+
 	"github.com/disintegration/imaging"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"cloud.google.com/go/storage"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"golang.org/x/exp/slices"
@@ -101,10 +101,10 @@ func parsePageSize(sizeParam string) (int, error) {
 }
 
 // writeFileToBucket uploads file to cloud storage bucket.
-func writeFileToBucket(ctx context.Context, client *storage.Client, path string, file *multipart.FileHeader, transcoder bucket.Transcoder) (size int64, err error) {
+func writeFileToBucket(ctx context.Context, client bucket.Client, path string, file *multipart.FileHeader, transcoder bucket.Transcoder) (size int64, err error) {
 	defer func() {
 		if err != nil {
-			log.Printf("Fail to upload file: %s to path: %s error: %s", file.Filename, path, err)
+			log.Printf("failed to upload file: %s to path: %s error: %v", file.Filename, path, err)
 		}
 	}()
 
@@ -114,16 +114,11 @@ func writeFileToBucket(ctx context.Context, client *storage.Client, path string,
 	}
 	defer f.Close() // nolint: errcheck
 
-	if transcoder != nil {
-		size, err = bucket.TransWrite(ctx, client, path, f, transcoder)
-	} else {
-		size, err = bucket.Write(ctx, client, path, f)
-	}
-	return size, err
+	return client.TransWrite(ctx, path, f, transcoder)
 }
 
 // writeThumbnailToBucket uploads thumbnail to bucket.
-func writeThumbnailToBucket(ctx context.Context, client *storage.Client, path string, file *multipart.FileHeader) (int64, error) {
+func writeThumbnailToBucket(ctx context.Context, client bucket.Client, path string, file *multipart.FileHeader) (int64, error) {
 	thumbnailPath := toThumbnailPath(path)
 	return writeFileToBucket(ctx, client, thumbnailPath, file, thumbnailTranscoder)
 }
@@ -132,7 +127,7 @@ func writeThumbnailToBucket(ctx context.Context, client *storage.Client, path st
 func thumbnailTranscoder(thumbnailWriter io.Writer, imageReader io.Reader) (int64, error) {
 	img, err := imaging.Decode(imageReader)
 	if err != nil {
-		log.Printf("File decoded failed: %s", err)
+		log.Printf("file decoded failed: %s", err)
 		return 0, err
 	}
 
@@ -147,7 +142,7 @@ func thumbnailTranscoder(thumbnailWriter io.Writer, imageReader io.Reader) (int6
 }
 
 // uploadToBucket uploads file with thumbnail to bucket.
-func uploadToBucket(ctx context.Context, client *storage.Client, path string, file *multipart.FileHeader) (int64, error) {
+func uploadToBucket(ctx context.Context, client bucket.Client, path string, file *multipart.FileHeader) (int64, error) {
 	size, err := writeFileToBucket(ctx, client, path, file, nil)
 	if err != nil {
 		return -1, err
@@ -164,15 +159,12 @@ func uploadToBucket(ctx context.Context, client *storage.Client, path string, fi
 }
 
 // updateBucketFile deletes old file with thumbnail and upload new one to bucket.
-func updateBucketFile(ctx context.Context, path string, file *multipart.FileHeader) (id string, newPath string, size int64, err error) {
+func updateBucketFile(ctx context.Context, client bucket.Client, path string, file *multipart.FileHeader) (id string, newPath string, size int64, err error) {
 	defer func() {
 		if err != nil {
-			log.Printf("Update bucket path %s failed: %s", path, err)
+			log.Printf("update bucket path %s failed: %v", path, err)
 		}
 	}()
-
-	client := bucket.NewClient(ctx)
-	defer client.Close() // nolint: errcheck
 
 	if err = deleteBucketFile(ctx, client, path); err != nil {
 		return
@@ -184,14 +176,14 @@ func updateBucketFile(ctx context.Context, path string, file *multipart.FileHead
 }
 
 // deleteBucketFile deletes file with thumbnail from cloud storage bucket.
-func deleteBucketFile(ctx context.Context, client *storage.Client, path string) error {
+func deleteBucketFile(ctx context.Context, client bucket.Client, path string) error {
 	if path == "" {
 		log.Println("no path to delete")
 		return nil
 	}
 	thumbnailPath := toThumbnailPath(path)
 	// The path order is matter, delete file before thumbnail.
-	if _, err := bucket.Delete(ctx, client, path, thumbnailPath); err != nil {
+	if err := client.Delete(ctx, path, thumbnailPath); err != nil {
 		return err
 	}
 	return nil
@@ -248,17 +240,23 @@ func PostFiles(c *gin.Context) {
 	tags := parseTags(form.Value["tags"][0])
 
 	ctx := context.Background()
-	client := bucket.NewClient(ctx)
+	client, err := bucket.Service.NewClient(ctx)
+	if err != nil {
+		log.Panicln(err)
+	}
 	defer client.Close() // nolint: errcheck
 
-	dbClient := firestore.NewClient(ctx)
+	dbClient, err := firestore.Service.NewClient(ctx)
+	if err != nil {
+		log.Panicln(err)
+	}
 	defer dbClient.Close() // nolint: errcheck
 
 	var filesarray []FileMeta
 	// Iterate all uploaded files.
 	for _, file := range files {
 		filename := filepath.Base(file.Filename)
-		log.Println("Process uploaded file:", filename)
+		log.Printf("process uploaded file: %s", filename)
 
 		id := uuid.New().String()
 		path := toBucketPath(id)
@@ -269,14 +267,14 @@ func PostFiles(c *gin.Context) {
 		}
 
 		// Add data to firestore.
-		record := &firestore.FileMetaRec{
+		record := &firestore.FileMetaRecord{
 			Path:     path,
 			Name:     filename,
 			FileSize: size,
 			Tags:     tags,
 			OrderNo:  getOrderNo(id),
 		}
-		docSnap, err := firestore.Create(ctx, dbClient, id, record)
+		docSnap, err := dbClient.Create(ctx, id, record)
 		if err != nil {
 			log.Panicln(err)
 		}
@@ -284,7 +282,7 @@ func PostFiles(c *gin.Context) {
 		// Add data to response.
 		item := generateFileMeta(docSnap)
 		filesarray = append(filesarray, item)
-		log.Printf("Uploaded file: %v\n", filename)
+		log.Printf("uploaded file: %s\n", filename)
 	}
 	response(c, http.StatusCreated, &FileListResponse{Files: filesarray})
 }
@@ -295,22 +293,26 @@ func UpdateFile(c *gin.Context) {
 	ctx := context.Background()
 	id := c.Param("id")
 
-	var err error
-	dbClient := firestore.NewClient(ctx)
+	dbClient, err := firestore.Service.NewClient(ctx)
+	if err != nil {
+		log.Panicln(err)
+	}
 	defer dbClient.Close() // nolint: errcheck
 
 	// Make suer the file exists before updating.
-	meta, err := firestore.Get(ctx, dbClient, id)
+	meta, err := dbClient.Get(ctx, id)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
 			response(c, http.StatusNotFound, nil)
 			return
-		} else {
-			log.Panicln(err)
 		}
+		log.Panicln(err)
 	}
 
-	form, _ := c.MultipartForm()
+	form, err := c.MultipartForm()
+	if err != nil {
+		log.Panicln(err)
+	}
 	var file *multipart.FileHeader
 	tags := parseTags(form.Value["tags"][0])
 	log.Println("tags:", tags)
@@ -327,7 +329,13 @@ func UpdateFile(c *gin.Context) {
 	}
 	if file != nil {
 		log.Println("file:", file.Filename)
-		bucketFileID, newPath, size, err := updateBucketFile(ctx, meta.Path, file)
+		client, err := bucket.Service.NewClient(ctx)
+		if err != nil {
+			log.Panicln(err)
+		}
+		defer client.Close() // nolint: errcheck
+
+		bucketFileID, newPath, size, err := updateBucketFile(ctx, client, meta.Path, file)
 		log.Println("bucketID:", bucketFileID, ", newPath:", newPath, ", err:", err)
 		if err != nil {
 			log.Panicln(err)
@@ -336,7 +344,7 @@ func UpdateFile(c *gin.Context) {
 		fields[firestore.FieldName] = filepath.Base(file.Filename)
 		fields[firestore.FieldSize] = size
 	}
-	newMeta, err := firestore.Merge(ctx, dbClient, id, &fields)
+	newMeta, err := dbClient.Merge(ctx, id, fields)
 	if err != nil {
 		log.Panicln(err)
 	}
@@ -358,10 +366,13 @@ func GetFileList(c *gin.Context) {
 	}
 
 	ctx := context.Background()
-	dbClient := firestore.NewClient(ctx)
+	dbClient, err := firestore.Service.NewClient(ctx)
+	if err != nil {
+		log.Panicln(err)
+	}
 	defer dbClient.Close() // nolint: errcheck
 
-	docs, err := firestore.ListByTags(ctx, dbClient, tags, orderNo, size)
+	docs, err := dbClient.ListByTags(ctx, tags, orderNo, size)
 	if err != nil {
 		log.Panicln(err)
 	}
@@ -382,30 +393,35 @@ func DeleteFile(c *gin.Context) {
 	id := c.Param("id")
 
 	var err error
-	dbClient := firestore.NewClient(ctx)
+	dbClient, err := firestore.Service.NewClient(ctx)
+	if err != nil {
+		log.Panicln(err)
+	}
 	defer dbClient.Close() // nolint: errcheck
 
 	// Delete data in firestore.
-	doc, err := firestore.Get(ctx, dbClient, id)
+	doc, err := dbClient.Get(ctx, id)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
 			response(c, http.StatusNotFound, nil)
 			return
-		} else {
-			log.Panicln(err)
 		}
+		log.Panicln(err)
 	}
 
-	client := bucket.NewClient(ctx)
+	client, err := bucket.Service.NewClient(ctx)
+	if err != nil {
+		log.Panicln(err)
+	}
 	defer client.Close() // nolint: errcheck
 
 	if err := deleteBucketFile(ctx, client, doc.Path); err != nil {
 		log.Panicln(err)
 	}
-	if err := firestore.Delete(ctx, dbClient, id); err != nil {
+	if err := dbClient.Delete(ctx, id); err != nil {
 		log.Panicln(err)
 	}
 
-	log.Printf("Object %q deleted.\n", id)
+	log.Printf("object %q deleted\n", id)
 	response(c, http.StatusNoContent, nil)
 }

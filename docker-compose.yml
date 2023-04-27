@@ -27,7 +27,7 @@ services:
       - LDS_RESOURCE_PATH=${LDS_RESOURCE_PATH}
       - MOCK=true
     ports:
-      - 8001:${LDS_REST_PORT}
+      - ${LDS_REST_PORT}:${LDS_REST_PORT}
     networks:
       - lds
 

@@ -1,4 +1,4 @@
-// Package bucket is used to access GCP storage bucket
+// Package bucket is used to access GCP storage bucket.
 package bucket
 
 import (
@@ -8,38 +8,61 @@ import (
 	"log"
 	"time"
 
+	"google/jss/ldsgo/config"
+
 	"cloud.google.com/go/storage"
-	"github.com/cienet/ldsgo/config"
+	"google.golang.org/api/iterator"
 )
 
-const timeout time.Duration = time.Second * 10
+const TIMEOUT time.Duration = time.Second * 10
 
-// Transcoder the function to transcode data from reader to writer
+// Transcoder the function to transcode data from reader to writer.
 type Transcoder func(writer io.Writer, reader io.Reader) (int64, error)
 
-// NewClient returns the storage client for handle bucket
-func NewClient(ctx context.Context) *storage.Client {
-	client, err := storage.NewClient(ctx)
-	if err != nil {
-		log.Printf("Fail to new storage client: %v", err)
-		panic(err)
-	}
-	return client
+type service interface {
+	NewClient(context.Context) (Client, error)
 }
 
-// Write reads from <reader> and write it to <path> of cloud storage bucket.
-func Write(ctx context.Context, client *storage.Client, path string, reader io.Reader) (int64, error) {
-	return TransWrite(ctx, client, path, reader, io.Copy)
+// Service used to creates client for bucket handling.
+var Service service = new(bucketService)
+
+type bucketService struct {
+}
+
+// NewClient creates the client for bucket handling.
+func (*bucketService) NewClient(ctx context.Context) (Client, error) {
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		log.Printf("cloudstore: failed to new storage client: %v", err)
+	}
+	return &bucketClient{client: client}, err
+}
+
+// Client is the interface of the bucket client for bucket handling.
+type Client interface {
+	TransWrite(context.Context, string, io.Reader, Transcoder) (size int64, err error)
+	Delete(context.Context, ...string) error
+	DeleteAll(context.Context) error
+	Close() error
+}
+
+type bucketClient struct {
+	client *storage.Client
+}
+
+// Close close the underlying client.
+func (c *bucketClient) Close() error {
+	return c.client.Close()
 }
 
 // TransWrite reads from <reader>, tanscode and write it to <path> of cloud storage bucket.
-func TransWrite(ctx context.Context, client *storage.Client, path string, reader io.Reader, transcoder Transcoder) (size int64, err error) {
-	ctx, cancel := context.WithTimeout(ctx, timeout)
+func (c *bucketClient) TransWrite(ctx context.Context, path string, reader io.Reader, transcoder Transcoder) (size int64, err error) {
+	ctx, cancel := context.WithTimeout(ctx, TIMEOUT)
 	defer cancel()
 
-	writer := client.Bucket(config.Config.LDSBucket).Object(path).NewWriter(ctx)
+	writer := c.client.Bucket(config.Config.LDSBucket).Object(path).NewWriter(ctx)
 	defer func() {
-		err = writer.Close() // Propagate the error if fail to close
+		err = writer.Close() // Propagate the error if failed to close.
 	}()
 
 	if transcoder == nil {
@@ -49,22 +72,42 @@ func TransWrite(ctx context.Context, client *storage.Client, path string, reader
 	return
 }
 
-// Delete deletes the given paths in bucket, return the first failed path if any.
-func Delete(ctx context.Context, client *storage.Client, paths ...string) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, timeout)
+// Delete deletes the given paths in bucket.
+func (c *bucketClient) Delete(ctx context.Context, paths ...string) error {
+	ctx, cancel := context.WithTimeout(ctx, TIMEOUT)
 	defer cancel()
 
-	bucketHandler := client.Bucket(config.Config.LDSBucket)
+	bucketHandler := c.client.Bucket(config.Config.LDSBucket)
 	for _, path := range paths {
 		o := bucketHandler.Object(path)
 		if err := o.Delete(ctx); err != nil {
 			if errors.Is(err, storage.ErrObjectNotExist) {
-				log.Printf("Ignore error, file %s does not exist while deleting", path)
+				log.Printf("ignore error, file %s does not exist while deleting", path)
 			} else {
-				log.Printf("Fail to delete file %s in bucket", path)
-				return path, err
+				log.Printf("cloudstore: failed to delete file %s in bucket", path)
+				return err
 			}
 		}
 	}
-	return "", nil
+	return nil
+}
+
+// DeleteAll deletes all files in the bucket.
+func (c *bucketClient) DeleteAll(ctx context.Context) error {
+	bucketHandler := c.client.Bucket(config.Config.LDSBucket)
+	it := bucketHandler.Objects(ctx, nil)
+	for {
+		attrs, err := it.Next()
+		if errors.Is(err, iterator.Done) {
+			break
+		}
+		if err != nil {
+			log.Printf("cloudstore: object iteration error: %v", err)
+		}
+
+		if err := c.Delete(ctx, attrs.Name); err != nil {
+			return err
+		}
+	}
+	return nil
 }
