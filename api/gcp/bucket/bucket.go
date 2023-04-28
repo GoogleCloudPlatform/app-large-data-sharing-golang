@@ -1,3 +1,17 @@
+// Copyright 2023 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // Package bucket is used to access GCP storage bucket.
 package bucket
 
@@ -14,7 +28,7 @@ import (
 	"google.golang.org/api/iterator"
 )
 
-const TIMEOUT time.Duration = time.Second * 10
+const timeout time.Duration = time.Second * 10
 
 // Transcoder the function to transcode data from reader to writer.
 type Transcoder func(writer io.Writer, reader io.Reader) (int64, error)
@@ -57,7 +71,7 @@ func (c *bucketClient) Close() error {
 
 // TransWrite reads from <reader>, tanscode and write it to <path> of cloud storage bucket.
 func (c *bucketClient) TransWrite(ctx context.Context, path string, reader io.Reader, transcoder Transcoder) (size int64, err error) {
-	ctx, cancel := context.WithTimeout(ctx, TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	writer := c.client.Bucket(config.Config.LDSBucket).Object(path).NewWriter(ctx)
@@ -74,7 +88,7 @@ func (c *bucketClient) TransWrite(ctx context.Context, path string, reader io.Re
 
 // Delete deletes the given paths in bucket.
 func (c *bucketClient) Delete(ctx context.Context, paths ...string) error {
-	ctx, cancel := context.WithTimeout(ctx, TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	bucketHandler := c.client.Bucket(config.Config.LDSBucket)

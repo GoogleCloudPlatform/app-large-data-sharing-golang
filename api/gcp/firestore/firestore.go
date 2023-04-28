@@ -1,3 +1,17 @@
+// Copyright 2023 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // Package firestore is used to access GCP firestore.
 package firestore
 
@@ -13,7 +27,7 @@ import (
 	"google.golang.org/api/iterator"
 )
 
-const TIMEOUT time.Duration = time.Second * 10
+const timeout time.Duration = time.Second * 10
 const collectionName string = "fileMeta"
 
 const FieldPath string = "path"       // FieldPath field name of path
@@ -85,7 +99,7 @@ func (c *firestoreClient) Get(ctx context.Context, id string) (*FileMeta, error)
 }
 
 func getByDoc(ctx context.Context, doc *firestore.DocumentRef) (*FileMeta, error) {
-	ctx, cancel := context.WithTimeout(ctx, TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	snapshot, err := doc.Get(ctx)
@@ -101,7 +115,7 @@ func getByDoc(ctx context.Context, doc *firestore.DocumentRef) (*FileMeta, error
 }
 
 func toResult(snapshot *firestore.DocumentSnapshot) (*FileMeta, error) {
-	result := &FileMeta{}
+	var result = new(FileMeta)
 	if err := snapshot.DataTo(result); err != nil {
 		log.Printf("failed to format result snapshot: %v, error: %v", snapshot, err)
 		return result, err
@@ -114,7 +128,7 @@ func toResult(snapshot *firestore.DocumentSnapshot) (*FileMeta, error) {
 
 // ListByTags lists the FileMeta from given tags.
 func (c *firestoreClient) ListByTags(ctx context.Context, tags []string, orderNo string, size int) ([]*FileMeta, error) {
-	ctx, cancel := context.WithTimeout(ctx, TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	files := c.client.Collection(collectionName)
@@ -160,7 +174,7 @@ func (c *firestoreClient) Merge(ctx context.Context, id string, fields map[strin
 }
 
 func (c *firestoreClient) set(ctx context.Context, id string, record interface{}, opt ...firestore.SetOption) (*FileMeta, error) {
-	ctxSet, cancel := context.WithTimeout(ctx, TIMEOUT)
+	ctxSet, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	doc := c.client.Collection(collectionName).Doc(id)
@@ -173,7 +187,7 @@ func (c *firestoreClient) set(ctx context.Context, id string, record interface{}
 
 // Delete deletes the document identified by the given id.
 func (c *firestoreClient) Delete(ctx context.Context, id string) error {
-	ctx, cancel := context.WithTimeout(ctx, TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	if _, err := c.client.Collection(collectionName).Doc(id).Delete(ctx); err != nil {

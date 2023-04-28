@@ -1,3 +1,17 @@
+// Copyright 2023 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // Package files defines REST API /api/files.
 package files
 
@@ -224,7 +238,7 @@ func response(c *gin.Context, code int, body interface{}) {
 // PostFiles is function for /api/files POST endpoint.
 // This API uses `multipart/form-data` to upload multiple files along with the relevant tags in a single request.
 func PostFiles(c *gin.Context) {
-	obj := &FileUploadRequest{}
+	var obj = new(FileUploadRequest)
 	if err := c.Bind(obj); err != nil {
 		response(c, http.StatusBadRequest, nil)
 		return
@@ -311,7 +325,8 @@ func UpdateFile(c *gin.Context) {
 
 	form, err := c.MultipartForm()
 	if err != nil {
-		log.Panicln(err)
+		response(c, http.StatusBadRequest, nil)
+		return
 	}
 	var file *multipart.FileHeader
 	tags := parseTags(form.Value["tags"][0])
@@ -377,7 +392,7 @@ func GetFileList(c *gin.Context) {
 		log.Panicln(err)
 	}
 
-	results := []FileMeta{}
+	var results = []FileMeta{} // An empty slice is intended for the JSON response instead of nil.
 	for _, doc := range docs {
 		item := generateFileMeta(doc)
 		results = append(results, item)
