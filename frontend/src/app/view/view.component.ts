@@ -1,7 +1,20 @@
-import { Component, ElementRef, ViewChild ,inject} from '@angular/core';
-import { Observable, of, Subject, from , take, fromEventPattern} from 'rxjs';
+// Copyright 2023 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+import { Component, ElementRef, Input, ViewChild, inject } from '@angular/core';
+import { Observable, of, Subject, take } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
-import { Validators, FormBuilder, FormControl} from '@angular/forms';
+import { Validators, FormBuilder } from '@angular/forms';
 import { ActivatedRoute, Router } from "@angular/router";
 import { SessionStorageService } from '../service/session-storage.service';
 import { FileModel } from '../type/file-model';
@@ -17,6 +30,7 @@ import { DOCUMENT } from '@angular/common';
 })
 
 export class ViewComponent {
+  @Input() loadImage?: (url: string) => Promise<{'Image Width': { value: string }, 'Image Height': { value: string }}>;
   isOpen:boolean = false
   showUpdate: boolean = false;
   updateItem: FileModel | null = null;
@@ -62,7 +76,8 @@ export class ViewComponent {
     if(this.viewData && this.viewData.url) {
       this.viewData = this.viewData || {};
 
-      ExifReader.load(`${this.document.location.origin}${this.viewData.url}`)
+      const loader = this.loadImage ?? ExifReader.load.bind(ExifReader);
+      loader(`${this.document.location.origin}${this.viewData.url}`)
         .then((tags: any) => {
           const width = tags['Image Width']?.value || 'unknown';
           const height = tags['Image Height']?.value || 'unknown';
@@ -74,7 +89,6 @@ export class ViewComponent {
     } else {
       console.error('Error: Invalid image URL');
     }
-
   }
 
   getFileSize(file: FileModel): string {
@@ -88,7 +102,9 @@ export class ViewComponent {
   }
 
   ngAfterViewInit(){
-    this.showLoader = false;
+    setTimeout(() => {
+      this.showLoader = false;
+    })
   }
 
   toggleUploadFile(uploadSucess?: boolean): any{
@@ -109,6 +125,7 @@ export class ViewComponent {
     this.updateItem = item;
     this.showUpdate = true;
   }
+
   searchTags() {
     this.router.navigate(['list/',this.tags.join(' ')]);
   }
@@ -125,19 +142,21 @@ export class ViewComponent {
     this.showConfirmDialog = false;
     this.deleteId = '';
   }
+
   delete() {
     const id = this.deleteId;
     if (!!id) {
-      this.http.delete(`/api/files/${id}`).subscribe(res => {
-        this.showConfirmDialog = false;
-        this.deleteId = '';
-        this.router.navigate(['list/']);
-      },
-      err => {
-        if (err.status === 404) {
-          alert('The file you are trying to upload/update does not exist. Please update/upload a correct file.');
+      this.http.delete(`/api/files/${id}`).subscribe(
+        res => {
+          this.showConfirmDialog = false;
+          this.deleteId = '';
+          this.router.navigate(['list/']);
+        },
+        err => {
+          if (err.status === 404) {
+            alert('The file you are trying to upload/update does not exist. Please update/upload a correct file.');
+          }
         }
-      }
       )
     }
 
