@@ -58,7 +58,7 @@ export class ListComponent {
 
   ngOnInit(): void {
     this.list$ = this.fileSubject.asObservable();
-    this.tags = this.mainService.tags;
+    this.tags = this.mainService.getTags();
     this.tagsSubscription = this.mainService.tagsSubject.subscribe(
       (tags: string[]) => {
         this.tags = tags;

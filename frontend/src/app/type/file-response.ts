@@ -13,6 +13,12 @@
 // limitations under the License.
 import { FileModel } from "./file-model";
 
+/**
+ * File object returned by server.
+ */
 export interface FileResponse {
+  /**
+   * List of files returned.
+   */
   files: FileModel[];
 }

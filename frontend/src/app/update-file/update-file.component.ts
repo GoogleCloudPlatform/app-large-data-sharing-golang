@@ -79,6 +79,7 @@ export class UpdateFileComponent implements OnChanges {
       reader.readAsDataURL(event.target.files[0]);
     }
   }
+
   ngAfterViewInit() {
     fromEvent(this.fileInput.nativeElement, 'change').pipe(
       map((event: any) => event.target.files[0]),
@@ -119,7 +120,6 @@ export class UpdateFileComponent implements OnChanges {
         }
       }
     );
-
   }
 
   checkFileType(fileName: string): string {

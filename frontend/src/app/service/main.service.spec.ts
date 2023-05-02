@@ -30,7 +30,7 @@ describe('MainService', () => {
   it('should clear the tags', () => {
     service.updateTags(['test', 'another test'])
     service.clearTag();
-    expect(service.tags).toEqual([]);
+    expect(service.getTags()).toEqual([]);
   });
 
   it('checks if the file is an image', () => {

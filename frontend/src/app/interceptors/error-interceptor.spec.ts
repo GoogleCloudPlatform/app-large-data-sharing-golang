@@ -17,14 +17,11 @@ import { HttpClientTestingModule, HttpTestingController } from '@angular/common/
 import { RouterTestingModule } from '@angular/router/testing';
 import { HttpClient, HTTP_INTERCEPTORS, HttpErrorResponse } from '@angular/common/http';
 import { ErrorInterceptor } from './error-interceptor';
-import { Component } from '@angular/core';
 import { NavigationEnd, Router, Routes } from '@angular/router';
-
-@Component({ template: '<div>Error Page</div>' })
-class ErrorPageComponent {}
+import { ErrorComponent } from '../error/error.component';
 
 const routes: Routes = [
-  { path: 'error', component: ErrorPageComponent }
+  { path: 'error', component: ErrorComponent }
 ];
 
 describe('ErrorInterceptor', () => {
@@ -38,7 +35,7 @@ describe('ErrorInterceptor', () => {
         HttpClientTestingModule,
         RouterTestingModule.withRoutes(routes)
       ],
-      declarations: [ErrorPageComponent],
+      declarations: [ErrorComponent],
       providers: [{
         provide: HTTP_INTERCEPTORS,
         useClass: ErrorInterceptor,

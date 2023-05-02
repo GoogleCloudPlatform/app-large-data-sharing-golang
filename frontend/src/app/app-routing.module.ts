@@ -17,7 +17,7 @@ import { ListComponent } from './list/list.component';
 import { ViewComponent } from './view/view.component';
 import { ErrorComponent } from './error/error.component';
 
-const routes: Routes = [
+export const routes: Routes = [
   {
     path: 'list/:tags',
     component: ListComponent,

@@ -11,17 +11,69 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, inject } from '@angular/core/testing';
 
 import { ListComponent } from './list.component';
+import { HttpClientModule, HttpRequest } from '@angular/common/http';
+import { RouterTestingModule } from '@angular/router/testing';
+import { HeaderComponent } from '../header/header.component';
+import { HeroIconModule, allIcons } from 'ng-heroicon';
+import { SearchBarComponent } from '../search-bar/search-bar.component';
+import { MatChipsModule } from '@angular/material/chips';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { MainService } from '../service/main.service';
 
 describe('ListComponent', () => {
   let component: ListComponent;
   let fixture: ComponentFixture<ListComponent>;
+  const id = "08f612cf-a88f-421a-a117-15a90df21a10";
+  const ebo = {
+    "id": id,
+    "name": "file1",
+    "tags": [
+        "tag1",
+        "tag2"
+    ],
+    "path": "test/file1",
+    "url": "/resource/3425e838-c58b-4d22-8a9a-400dfb3f1406",
+    "thumbUrl": "",
+    "orderNo": "1682661978696-3425e838-c58b-4d22-8a9a-400dfb3f1406",
+    "size": 1000,
+    "createTime": "2023-04-28T06:06:18.696Z",
+    "updateTime": "2023-04-28T06:06:18.696Z"
+  };
+  const failEbo = {
+    "id": "",
+    "name": "file1",
+    "tags": [
+        "tag1",
+        "tag2"
+    ],
+    "path": "test/file1",
+    "url": "/resource/3425e838-c58b-4d22-8a9a-400dfb3f1406",
+    "thumbUrl": "",
+    "orderNo": "1682661978696-3425e838-c58b-4d22-8a9a-400dfb3f1406",
+    "size": 1000,
+    "createTime": "2023-04-28T06:06:18.696Z",
+    "updateTime": "2023-04-28T06:06:18.696Z"
+  };
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ ListComponent ]
+      declarations: [ ListComponent,
+        HeaderComponent,
+        SearchBarComponent ],
+      imports: [ HttpClientModule,
+        HttpClientTestingModule,
+        FormsModule,
+        ReactiveFormsModule,
+        RouterTestingModule,
+        MatChipsModule,
+        HeroIconModule.forRoot({
+          ...allIcons
+        }), ]
     })
     .compileComponents();
 
@@ -33,4 +85,117 @@ describe('ListComponent', () => {
   it('should create', () => {
     expect(component).toBeTruthy();
   });
+
+  it('should scroll to top', () => {
+    window.scroll(0, 100);
+    component.scrollToTop();
+    expect(window.scrollY).toBe(0);
+  });
+
+  it('should onScroll at buttom', () => {
+    const expectLength = component.listArr.length;
+    window.scrollTo({ top: 1080, behavior: 'smooth' });
+    expect(component.listArr.length).toBeGreaterThanOrEqual(expectLength);
+  });
+
+  it('should search by tag', () => {
+    component.searchTags();
+    expect(component.listArr.length).toBeGreaterThanOrEqual(0);
+  });
+
+  it('should clear search tags', () => {
+    component.searchTags(false, true);
+    expect(component.tags.length).toBe(0);
+  });
+
+  it('should search tags throws error', inject([HttpTestingController], (httpMock: HttpTestingController) => {
+    const req = httpMock.expectOne('/api/files?tags=&orderNo=&size=50');
+    expect(req.request.method).toEqual('GET');
+    req.flush(null);
+    httpMock.verify();
+    expect(component.listArr.length).toBe(0);
+  }));
+
+  it('should found no tags in metadata', inject([MainService], (mainService: MainService) => {
+    mainService.updateTags(['tag1', 'tag2']);
+    component.searchTags();
+    const except = component.listArr.some(e => e.tags.includes('tag1') || e.tags.includes('tag2'));
+    expect(except).toBe(false);
+  }));
+
+  it('should tag not found in metadata', inject([MainService], (mainService: MainService) => {
+    mainService.updateTags(['tag1', 'tag2']);
+    component.searchTags();
+    const except = component.listArr.some(e => e.tags.includes('tag3'));
+    expect(except).toBe(false);
+  }));
+
+  it('should toggle upload file', () => {
+    component.toggleUploadFile();
+    expect(component.onUploadFile).toBe(true);
+  });
+
+  it('should success to upload file', () => {
+    component.toggleUploadFile(true);
+    expect(component.onUploadFile).toBe(true);
+    expect(component.tags.length).toBe(0);
+  })
+
+  it('should refresh home', () => {
+    component.refreshHome();
+    expect(component.onUploadFile).toBe(false);
+  });
+
+  it('should select update', () => {
+    component.selectUpdate(ebo);
+    expect(component.showUpdate).toBe(true);
+  });
+
+  it('should show confirm dialog', () => {
+    component.showConfirm(id);
+    expect(component.showConfirmDialog).toBe(true);
+  })
+
+  it('should cancel', () => {
+    component.cancel();
+    expect(component.showConfirmDialog).toBe(false);
+  });
+
+  it('should success to delete', () => {
+    component.showConfirm(id);
+    component.delete();
+    expect(component.showConfirmDialog).toBe(false);
+  });
+
+  it('should fail to delete', () => {
+    component.showConfirm("");
+    component.delete();
+    expect(component.showConfirmDialog).toBe(true);
+  });
+
+  it('should search by handle search event', () => {
+    component.handleSearchEvent({ eventName: 'searchTags' });
+    expect(component.listArr.length).toBeGreaterThanOrEqual(0);
+  });
+
+  it('should clear by handle search event', () => {
+    component.handleSearchEvent({ eventName: 'clearTag' });
+    expect(component.tags.length).toBe(0);
+  });
+
+  it('should success to update img', () => {
+    component.updateImg(ebo);
+    expect(component.showUpdate).toBe(false);
+  });
+
+  it('should fail to update img', () => {
+    component.updateImg(failEbo);
+    expect(component.showUpdate).toBe(false);
+  });
+
+  it('should view img', inject([Router], (mockRouter: Router) => {
+    const spy = spyOn(mockRouter, 'navigate').and.stub();
+    component.view(ebo);
+    expect(spy).toHaveBeenCalledWith(['view/', ebo.id]);
+  }));
 });

@@ -18,7 +18,7 @@ import { Subject } from 'rxjs';
   providedIn: 'root',
 })
 export class MainService {
-  tags: string[] = [];
+  private tags: string[] = [];
   tagsSubject = new Subject<string[]>();
 
 

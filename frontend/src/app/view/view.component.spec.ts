@@ -168,9 +168,9 @@ describe('ViewComponent', () => {
     fixture.detectChanges();
     const tags = ['tag1', 'tag2', 'tag3'];
     mainService.updateTags(tags);
-    expect(mainService.tags.join(',')).toEqual(tags.join(','));
+    expect(mainService.getTags().join(',')).toEqual(tags.join(','));
     component.handleSearchEvent({ eventName: 'clearTag' });
-    expect(mainService.tags.length).toBe(0);
+    expect(mainService.getTags().length).toBe(0);
   });
 
   it('should search tags when handleSearchEvent with { eventName: "searchTags" }', (done) => {

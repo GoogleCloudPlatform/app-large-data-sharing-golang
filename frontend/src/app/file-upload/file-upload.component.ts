@@ -47,8 +47,6 @@ export class FileUploadComponent implements OnInit {
   }
 
   addFiles(event: any): void {
-    const maxFileSize = 32 * 1024 * 1024; // 32MB
-
     if (event.target.files.length === 0) {
       return;
     }
@@ -56,7 +54,7 @@ export class FileUploadComponent implements OnInit {
     const fileList = [...event.target.files];
     const totalFileSize = fileList.map(f => f.size).reduce((p, a) => p + a, 0);
 
-    if (totalFileSize > maxFileSize) {
+    if (totalFileSize > MAX_FILE_SIZE) {
       alert('Files over 32MB are not supported.');
     } else {
       this.showHint = false;
@@ -118,3 +116,5 @@ export class FileUploadComponent implements OnInit {
     this.tags.splice(index, 1);
   }
 }
+
+const MAX_FILE_SIZE = 32 * 1024 * 1024; // 32MB
