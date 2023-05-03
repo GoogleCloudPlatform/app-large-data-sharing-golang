@@ -23,12 +23,18 @@ import (
 )
 
 type config struct {
-	LDSRestPort      string
-	LDSBucket        string
-	LDSProject       string
-	ResourceBasePath string
-	BucketBasePath   string
-	MockFlag         bool
+	LDSRestPort              string
+	LDSProject               string
+	LDSBucket                string
+	LDSFirestore             string
+	LDSFirestoreFieldPath    string
+	LDSFirestoreFieldName    string
+	LDSFirestoreFieldSize    string
+	LDSFirestoreFieldTags    string
+	LDSFirestoreFieldOrderNo string
+	ResourceBasePath         string
+	BucketBasePath           string
+	MockFlag                 bool
 }
 
 // Config is the global configuration parsed from environment variables.
@@ -46,12 +52,27 @@ func init() {
 	bucketBasePath = strings.TrimRight(bucketBasePath, "/") + "/" // Make sure the path end with "/".
 
 	Config = config{
-		LDSRestPort:      os.Getenv("LDS_REST_PORT"),
-		LDSBucket:        os.Getenv("LDS_BUCKET"),
-		LDSProject:       os.Getenv("LDS_PROJECT"),
+		LDSRestPort:              getEnv("LDS_REST_PORT", "8000"),
+		LDSProject:               getEnv("LDS_PROJECT", ""),
+		LDSBucket:                getEnv("LDS_BUCKET", "lds_data"),
+		LDSFirestore:             getEnv("LDS_FIRESTORE", "fileMetadata"),
+		LDSFirestoreFieldPath:    getEnv("LDS_FIRESTORE_FIELD_PATH", "path"),
+		LDSFirestoreFieldName:    getEnv("LDS_FIRESTORE_FIELD_NAME", "name"),
+		LDSFirestoreFieldSize:    getEnv("LDS_FIRESTORE_FIELD_SIZE", "size"),
+		LDSFirestoreFieldTags:    getEnv("LDS_FIRESTORE_FIELD_TAGS", "tags"),
+		LDSFirestoreFieldOrderNo: getEnv("LDS_FIRESTORE_FIELD_ORDER_NO", "orderNo"),
+
 		ResourceBasePath: resourceBasePath,
 		BucketBasePath:   bucketBasePath,
 		MockFlag:         mockFlag,
 	}
 	log.Println("using config:", Config)
+}
+
+func getEnv(name string, defaultValue string) string {
+	value, exist := os.LookupEnv(name)
+	if !exist {
+		return defaultValue
+	}
+	return value
 }

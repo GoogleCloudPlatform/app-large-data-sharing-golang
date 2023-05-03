@@ -80,8 +80,8 @@ func (m *MockedClient) ListByTags(ctx context.Context, tags []string, orderNo st
 }
 
 // Create mocks the original Create function.
-func (m *MockedClient) Create(ctx context.Context, id string, record *FileMetaRecord) (*FileMeta, error) {
-	result := m.Called(ctx, id, record)
+func (m *MockedClient) Create(ctx context.Context, id string, fields map[string]interface{}) (*FileMeta, error) {
+	result := m.Called(ctx, id, fields)
 	fileMeta, ok := result.Get(0).(*FileMeta)
 	if !ok {
 		return nil, errors.New("not a FileMeta")

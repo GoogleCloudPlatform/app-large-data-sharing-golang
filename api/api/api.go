@@ -35,7 +35,7 @@ func Healthcheck(c *gin.Context) {
 // Reset is function for /api/reset DELETE endpoint.
 // This API resets the server, deleting all files in the system.
 func Reset(c *gin.Context) {
-	log.Println("Start to reset server")
+	log.Println("start to reset server")
 	ctx := context.Background()
 
 	dbClient, err := firestore.Service.NewClient(ctx)

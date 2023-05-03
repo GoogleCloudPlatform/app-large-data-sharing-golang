@@ -18,7 +18,9 @@ package firestore
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
+	"reflect"
 	"time"
 
 	"google/jss/ldsgo/config"
@@ -28,21 +30,89 @@ import (
 )
 
 const timeout time.Duration = time.Second * 10
-const collectionName string = "fileMeta"
-
-const FieldPath string = "path"       // FieldPath field name of path
-const FieldName string = "name"       // FieldName field name of name
-const FieldSize string = "size"       // FieldSize field name of size
-const FieldTags string = "tags"       // FieldTags field name of tags
-const FieldOrderNo string = "orderNo" // FieldOrderNo field name of orderNo
 
 // FileMetaRecord is used to create FileMeta in firestore.
 type FileMetaRecord struct {
-	Path     string   `firestore:"path"`
-	Name     string   `firestore:"name"`
-	FileSize int64    `firestore:"size"`
-	Tags     []string `firestore:"tags"`
-	OrderNo  string   `firestore:"orderNo"`
+	Path     string
+	Name     string
+	FileSize int64
+	Tags     []string
+	OrderNo  string
+}
+
+// Set sets the FileMetaRecord with given map
+func (record *FileMetaRecord) Set(data map[string]interface{}) error {
+	path, err := getValue(data, config.Config.LDSFirestoreFieldPath, "")
+	if err != nil {
+		return err
+	}
+	record.Path = path
+
+	name, err := getValue(data, config.Config.LDSFirestoreFieldName, "")
+	if err != nil {
+		return err
+	}
+	record.Name = name
+
+	size, err := getValue(data, config.Config.LDSFirestoreFieldSize, int64(0))
+	if err != nil {
+		return err
+	}
+	record.FileSize = size
+
+	orderNo, err := getValue(data, config.Config.LDSFirestoreFieldOrderNo, "")
+	if err != nil {
+		return err
+	}
+	record.OrderNo = orderNo
+
+	tags, err := getSliceValue(data, config.Config.LDSFirestoreFieldTags, "")
+	if err != nil {
+		return err
+	}
+	record.Tags = tags
+
+	return nil
+}
+
+func getValue[T any](mapdata map[string]interface{}, key string, valueType T) (T, error) {
+	val, ok := mapdata[key]
+	if !ok {
+		return valueType, fmt.Errorf("the key %s does not exist", key)
+	}
+	return toType(val, valueType)
+}
+
+func getSliceValue[T any](mapdata map[string]interface{}, key string, elemType T) ([]T, error) {
+	val, ok := mapdata[key]
+	if !ok {
+		return nil, fmt.Errorf("the key %s does not exist", key)
+	}
+	return toSlice(val, elemType)
+}
+
+func toType[T any](data interface{}, valueType T) (T, error) {
+	value, ok := data.(T)
+	if !ok {
+		return valueType, fmt.Errorf("the type of %v is %v, but %v is expected", data, reflect.TypeOf(data), reflect.TypeOf(valueType))
+	}
+	return value, nil
+}
+
+func toSlice[T any](data interface{}, elemType T) ([]T, error) {
+	values, ok := data.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("%v is not a slice", data)
+	}
+	var result []T
+	for _, elem := range values {
+		value, ok := elem.(T)
+		if !ok {
+			return nil, fmt.Errorf("the type of element %v is %v, but %v is expected", elem, reflect.TypeOf(elem), reflect.TypeOf(elemType))
+		}
+		result = append(result, value)
+	}
+	return result, nil
 }
 
 // FileMeta is queried from FileMeta collection.
@@ -76,7 +146,7 @@ func (*firestoreService) NewClient(ctx context.Context) (Client, error) {
 type Client interface {
 	Get(context.Context, string) (*FileMeta, error)
 	ListByTags(context.Context, []string, string, int) ([]*FileMeta, error)
-	Create(context.Context, string, *FileMetaRecord) (*FileMeta, error)
+	Create(context.Context, string, map[string]interface{}) (*FileMeta, error)
 	Merge(context.Context, string, map[string]interface{}) (*FileMeta, error)
 	Delete(context.Context, string) error
 	DeleteAll(context.Context) error
@@ -94,7 +164,7 @@ func (c *firestoreClient) Close() error {
 
 // Get gets the FileMeta from given ID.
 func (c *firestoreClient) Get(ctx context.Context, id string) (*FileMeta, error) {
-	doc := c.client.Collection(collectionName).Doc(id)
+	doc := c.client.Collection(config.Config.LDSFirestore).Doc(id)
 	return getByDoc(ctx, doc)
 }
 
@@ -107,19 +177,21 @@ func getByDoc(ctx context.Context, doc *firestore.DocumentRef) (*FileMeta, error
 		log.Printf("failed to get document from firestore: %v", err)
 		return nil, err
 	}
-	result, err := toResult(snapshot)
+	result, err := newFileMeta(snapshot)
 	if err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func toResult(snapshot *firestore.DocumentSnapshot) (*FileMeta, error) {
+func newFileMeta(snapshot *firestore.DocumentSnapshot) (*FileMeta, error) {
+	data := snapshot.Data()
+
 	var result = new(FileMeta)
-	if err := snapshot.DataTo(result); err != nil {
-		log.Printf("failed to format result snapshot: %v, error: %v", snapshot, err)
-		return result, err
+	if err := result.Set(data); err != nil {
+		return result, fmt.Errorf("failed to format result snapshot: %v, err: %w", snapshot, err)
 	}
+
 	result.ID = snapshot.Ref.ID
 	result.CreateTime = snapshot.CreateTime
 	result.UpdateTime = snapshot.UpdateTime
@@ -131,12 +203,10 @@ func (c *firestoreClient) ListByTags(ctx context.Context, tags []string, orderNo
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	files := c.client.Collection(collectionName)
-	var query firestore.Query
-	if len(tags) == 0 {
-		query = files.OrderBy("orderNo", firestore.Desc)
-	} else {
-		query = files.Where("tags", "array-contains-any", tags).OrderBy("orderNo", firestore.Desc)
+	files := c.client.Collection(config.Config.LDSFirestore)
+	query := files.OrderBy(config.Config.LDSFirestoreFieldOrderNo, firestore.Desc)
+	if len(tags) != 0 {
+		query = files.Where(config.Config.LDSFirestoreFieldTags, "array-contains-any", tags)
 	}
 	if orderNo != "" {
 		query = query.StartAfter(orderNo)
@@ -154,7 +224,7 @@ func (c *firestoreClient) ListByTags(ctx context.Context, tags []string, orderNo
 			log.Printf("firestore: failed to read from firestore, query: %v", query)
 			return nil, err
 		}
-		result, err := toResult(snapshot)
+		result, err := newFileMeta(snapshot)
 		if err != nil {
 			return nil, err
 		}
@@ -164,8 +234,8 @@ func (c *firestoreClient) ListByTags(ctx context.Context, tags []string, orderNo
 }
 
 // Create creates the FileMeta associated with the given ID.
-func (c *firestoreClient) Create(ctx context.Context, id string, record *FileMetaRecord) (*FileMeta, error) {
-	return c.set(ctx, id, record)
+func (c *firestoreClient) Create(ctx context.Context, id string, fields map[string]interface{}) (*FileMeta, error) {
+	return c.set(ctx, id, fields)
 }
 
 // Merge updates the FileMeta identified by given ID, it only updates the given fields and leaves others untouched.
@@ -177,7 +247,7 @@ func (c *firestoreClient) set(ctx context.Context, id string, record interface{}
 	ctxSet, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	doc := c.client.Collection(collectionName).Doc(id)
+	doc := c.client.Collection(config.Config.LDSFirestore).Doc(id)
 	if _, err := doc.Set(ctxSet, record, opt...); err != nil {
 		log.Printf("firestore: failed to write to firestore, error:%v", err)
 		return nil, err
@@ -190,7 +260,7 @@ func (c *firestoreClient) Delete(ctx context.Context, id string) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	if _, err := c.client.Collection(collectionName).Doc(id).Delete(ctx); err != nil {
+	if _, err := c.client.Collection(config.Config.LDSFirestore).Doc(id).Delete(ctx); err != nil {
 		log.Printf("firestore: failed to delete document from firestore: %v", err)
 		return err
 	}
@@ -199,7 +269,7 @@ func (c *firestoreClient) Delete(ctx context.Context, id string) error {
 
 // DeleteAll deletes all the documents in the colletion
 func (c *firestoreClient) DeleteAll(ctx context.Context) error {
-	col := c.client.Collection(collectionName)
+	col := c.client.Collection(config.Config.LDSFirestore)
 	bulkwriter := c.client.BulkWriter(ctx)
 	for {
 		// Delete 50 documents each time.
