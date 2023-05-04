@@ -15,8 +15,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { SearchBarComponent } from './search-bar.component';
 import { By } from '@angular/platform-browser';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatChipInputEvent, MatChipsModule } from '@angular/material/chips';
+import { HeroIconModule, allIcons } from 'ng-heroicon';
 
 describe('SearchBarComponent', () => {
   let component: SearchBarComponent;
@@ -27,27 +28,32 @@ describe('SearchBarComponent', () => {
       declarations: [SearchBarComponent],
       imports: [
         FormsModule,
+        ReactiveFormsModule,
         MatChipsModule,
+        HeroIconModule.forRoot({ ...allIcons }),
       ]
     })
     .compileComponents();
 
     fixture = TestBed.createComponent(SearchBarComponent);
     component = fixture.componentInstance;
+    component.formGroup = new FormGroup({
+      tags: new FormControl()
+    });
     fixture.detectChanges();
   });
 
-  it('should create', () => {
+  it('should create the component', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should search tags emit', () => {
+  it('should search tags', () => {
     spyOn(component.clicked, 'emit');
     component.searchTags();
     expect(component.clicked.emit).toHaveBeenCalled();
   });
 
-  it('should click search tags emit', () => {
+  it('should click on search tags', () => {
     spyOn(component.clicked, 'emit');
     component.clickSearchTags();
     expect(component.clicked.emit).toHaveBeenCalled();

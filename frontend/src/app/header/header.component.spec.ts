@@ -30,11 +30,11 @@ describe('HeaderComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create', () => {
+  it('should create the component', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should navigate back to home when header is clicked', () => {
+  it('should navigate back to home when the header is clicked', () => {
     spyOn(component.refreshToHome, 'emit');
     const headerElement = fixture.nativeElement.querySelector('#jumpToHome');
     headerElement.click();

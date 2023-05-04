@@ -21,6 +21,7 @@ describe('SessionStorageService', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({});
     service = TestBed.inject(SessionStorageService);
+    service.clearImageData();
   });
 
   it('should create the serivce', () => {
@@ -42,11 +43,12 @@ describe('SessionStorageService', () => {
   it('should save the image data correctly', () => {
     service.saveImageData(imgData);
     const imageData = service.getImageData();
-    expect(imageData).toEqual(imgData);
+    expect(JSON.stringify(imageData)).toEqual(JSON.stringify(imgData));
   });
 
   it('should retrieve image data correctly', () => {
-    const imageData = service.getImageData();  
-    expect(imageData).toEqual(imgData);
+    service.saveImageData(imgData);
+    const imageData = service.getImageData(); 
+    expect(JSON.stringify(imageData)).toEqual(JSON.stringify(imgData));
   });
 });

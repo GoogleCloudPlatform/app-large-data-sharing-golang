@@ -98,17 +98,17 @@ describe('ViewComponent', () => {
     mainService.clearTag();
   });
 
-  it('should create', () => {
+  it('should create the component', () => {
     fixture.detectChanges();
     expect(component).toBeTruthy();
   });
 
-  it('should be false before excute toggleUploadFile', () => {
+  it('should be false before executing toggleUploadFile', () => {
     fixture.detectChanges();
     expect(component.onUploadFile).toBeFalse();
   });
 
-  it('should be toggled between true and false by excuting toggleUploadFile', () => {
+  it('should be toggled between true and false by executing toggleUploadFile', () => {
     fixture.detectChanges();
     expect(component.onUploadFile).toBeFalse();
     component.toggleUploadFile();
@@ -117,7 +117,7 @@ describe('ViewComponent', () => {
     expect(component.onUploadFile).toBeFalse();
   });
 
-  it('should be navigate to /list/ when executing toggleUploadFile(true)', (done) => {
+  it('should navigate to /list/ when executing toggleUploadFile(true)', (done) => {
     fixture.detectChanges();
     router.events.subscribe((event) => {
       if (event instanceof NavigationEnd) {
@@ -128,7 +128,7 @@ describe('ViewComponent', () => {
     component.toggleUploadFile(true);
   });
 
-  it('should be navigate to /list/tag1%20tag2%20tag3 when executing searchTags with tag1 tag2 tag3', (done) => {
+  it('should navigate to /list/tag1%20tag2%20tag3 when executing searchTags with tags', (done) => {
     fixture.detectChanges();
     router.events.subscribe((event) => {
       if (event instanceof NavigationEnd) {
@@ -140,7 +140,7 @@ describe('ViewComponent', () => {
     component.searchTags();
   });
 
-  it('should be navigate to /list/ after delete() success', (done) => {
+  it('should navigate to /list/ after deleting a file', (done) => {
     fixture.detectChanges();
     router.events.subscribe((event) => {
       if (event instanceof NavigationEnd) {
@@ -154,7 +154,7 @@ describe('ViewComponent', () => {
     req.flush({});
   });
 
-  it('should be popped an alert after delete() repsonse 404 error', () => {
+  it('should display an alert after receiving HTTP 404 from the delete function', () => {
     fixture.detectChanges();
     spyOn(window, 'alert');
     component.deleteId = 'test123';
@@ -164,7 +164,7 @@ describe('ViewComponent', () => {
     expect(window.alert).toHaveBeenCalledWith('The file you are trying to upload/update does not exist. Please update/upload a correct file.');
   });
 
-  it('should clear tags when handleSearchEvent with { eventName: "clearTag" }', () => {
+  it('should clear the tags when executing handleSearchEvent with { eventName: "clearTag" }', () => {
     fixture.detectChanges();
     const tags = ['tag1', 'tag2', 'tag3'];
     mainService.updateTags(tags);
@@ -173,7 +173,7 @@ describe('ViewComponent', () => {
     expect(mainService.getTags().length).toBe(0);
   });
 
-  it('should search tags when handleSearchEvent with { eventName: "searchTags" }', (done) => {
+  it('should search the tags when executing handleSearchEvent with { eventName: "searchTags" }', (done) => {
     fixture.detectChanges();
     router.events.subscribe((event) => {
       if (event instanceof NavigationEnd) {
@@ -185,7 +185,7 @@ describe('ViewComponent', () => {
     component.handleSearchEvent({ eventName: 'searchTags' });
   });
 
-  it('should be equal when calling updateImage(updateFile)', () => {
+  it('should be equal when executing updateImage(updateFile)', () => {
     fixture.detectChanges();
     const updateFile = {
       file: { ...imageData }

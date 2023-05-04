@@ -11,10 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-import { ComponentFixture, TestBed, inject } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, inject } from '@angular/core/testing';
 
 import { ListComponent } from './list.component';
-import { HttpClientModule, HttpRequest } from '@angular/common/http';
+import { HttpClientModule  } from '@angular/common/http';
 import { RouterTestingModule } from '@angular/router/testing';
 import { HeaderComponent } from '../header/header.component';
 import { HeroIconModule, allIcons } from 'ng-heroicon';
@@ -24,6 +24,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { MainService } from '../service/main.service';
+import { of } from 'rxjs';
 
 describe('ListComponent', () => {
   let component: ListComponent;
@@ -82,23 +83,23 @@ describe('ListComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create', () => {
+  it('should create the component', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should scroll to top', () => {
+  it('should scroll to the top', () => {
     window.scroll(0, 100);
     component.scrollToTop();
     expect(window.scrollY).toBe(0);
   });
 
-  it('should onScroll at buttom', () => {
+  it('should scroll to the buttom', () => {
     const expectLength = component.listArr.length;
     window.scrollTo({ top: 1080, behavior: 'smooth' });
     expect(component.listArr.length).toBeGreaterThanOrEqual(expectLength);
   });
 
-  it('should search by tag', () => {
+  it('should search by tags', () => {
     component.searchTags();
     expect(component.listArr.length).toBeGreaterThanOrEqual(0);
   });
@@ -108,7 +109,7 @@ describe('ListComponent', () => {
     expect(component.tags.length).toBe(0);
   });
 
-  it('should search tags throws error', inject([HttpTestingController], (httpMock: HttpTestingController) => {
+  it('should search by tags and throws error', inject([HttpTestingController], (httpMock: HttpTestingController) => {
     const req = httpMock.expectOne('/api/files?tags=&orderNo=&size=50');
     expect(req.request.method).toEqual('GET');
     req.flush(null);
@@ -116,84 +117,92 @@ describe('ListComponent', () => {
     expect(component.listArr.length).toBe(0);
   }));
 
-  it('should found no tags in metadata', inject([MainService], (mainService: MainService) => {
+  it('should not see tags in metadata', inject([MainService], (mainService: MainService) => {
     mainService.updateTags(['tag1', 'tag2']);
     component.searchTags();
     const except = component.listArr.some(e => e.tags.includes('tag1') || e.tags.includes('tag2'));
     expect(except).toBe(false);
   }));
 
-  it('should tag not found in metadata', inject([MainService], (mainService: MainService) => {
+  it('should not see tags in metadata', inject([MainService], (mainService: MainService) => {
     mainService.updateTags(['tag1', 'tag2']);
     component.searchTags();
     const except = component.listArr.some(e => e.tags.includes('tag3'));
     expect(except).toBe(false);
   }));
 
-  it('should toggle upload file', () => {
+  it('should toggle the upload file component', () => {
     component.toggleUploadFile();
     expect(component.onUploadFile).toBe(true);
   });
 
-  it('should success to upload file', () => {
+  it('should upload the file successfully', () => {
     component.toggleUploadFile(true);
     expect(component.onUploadFile).toBe(true);
     expect(component.tags.length).toBe(0);
   })
 
-  it('should refresh home', () => {
+  it('should refresh the home page', () => {
     component.refreshHome();
     expect(component.onUploadFile).toBe(false);
   });
 
-  it('should select update', () => {
+  it('should select the update component', () => {
     component.selectUpdate(ebo);
     expect(component.showUpdate).toBe(true);
   });
 
-  it('should show confirm dialog', () => {
+  it('should display the confirm dialog', () => {
     component.showConfirm(id);
     expect(component.showConfirmDialog).toBe(true);
   })
 
-  it('should cancel', () => {
+  it('should dismiss the confirm dialog', () => {
     component.cancel();
     expect(component.showConfirmDialog).toBe(false);
   });
 
-  it('should success to delete', () => {
-    component.showConfirm(id);
+  it('should execute the delete function', fakeAsync(inject([HttpTestingController], (httpMock: HttpTestingController) => {
+    component.deleteId = id;
     component.delete();
-    expect(component.showConfirmDialog).toBe(false);
-  });
+    const req = httpMock.expectOne(`/api/files/${id}`);
+    req.flush(null);
+    expect(req.request.method).toEqual('DELETE');
+    const req2 = httpMock.expectOne(`/api/files?tags=&orderNo=&size=50`).flush(of({}));
+    httpMock.verify();
+  })));
 
-  it('should fail to delete', () => {
-    component.showConfirm("");
+  it('should fail to execute the delete function', fakeAsync(inject([HttpTestingController], (httpMock: HttpTestingController) => {
+    component.deleteId = 'a';
     component.delete();
-    expect(component.showConfirmDialog).toBe(true);
-  });
+    const req = httpMock.expectOne(`/api/files/${component.deleteId}`);
+    req.flush('Not Found', { status: 404, statusText: 'Not Found' });
+    const req2 = httpMock.expectOne(`/api/files?tags=&orderNo=&size=50`).flush(of([]));
+    expect(req.request.method).toEqual('DELETE');
+    httpMock.verify();
+  })));
 
-  it('should search by handle search event', () => {
+  it('should search by handling the search event', () => {
     component.handleSearchEvent({ eventName: 'searchTags' });
     expect(component.listArr.length).toBeGreaterThanOrEqual(0);
   });
 
-  it('should clear by handle search event', () => {
+  it('should clear by handling the search event', () => {
     component.handleSearchEvent({ eventName: 'clearTag' });
     expect(component.tags.length).toBe(0);
   });
 
-  it('should success to update img', () => {
+  it('should update the image successfully', () => {
     component.updateImg(ebo);
     expect(component.showUpdate).toBe(false);
   });
 
-  it('should fail to update img', () => {
+  it('should fail to update the image', () => {
     component.updateImg(failEbo);
     expect(component.showUpdate).toBe(false);
   });
 
-  it('should view img', inject([Router], (mockRouter: Router) => {
+  it('should view the image', inject([Router], (mockRouter: Router) => {
     const spy = spyOn(mockRouter, 'navigate').and.stub();
     component.view(ebo);
     expect(spy).toHaveBeenCalledWith(['view/', ebo.id]);

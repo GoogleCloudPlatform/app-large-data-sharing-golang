@@ -30,18 +30,18 @@ describe('ConfirmDialogComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create', () => {
+  it('should create the component', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should emit cancel event when cancel button is clicked', () => {
+  it('should emit a cancel event when the cancel button is clicked', () => {
     spyOn(component.confirmCancel, 'emit');
     const cancelButton = fixture.nativeElement.querySelector('#confirmCancel');
     cancelButton.click();
     expect(component.confirmCancel.emit).toHaveBeenCalled();
   });
 
-  it('should emit delete event when delete button is clicked', () => {
+  it('should emit a delete event when the delete button is clicked', () => {
     spyOn(component.confirmDelete, 'emit');
     const deleteButton = fixture.nativeElement.querySelector('#confirmDelete');
     deleteButton.click();

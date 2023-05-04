@@ -47,11 +47,11 @@ describe('UpdateFileComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create', () => {
+  it('should create the component', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should update success', () => {
+  it('should update successfully', () => {
     httpTestingController = TestBed.inject(HttpTestingController);
     const id = '123';
     const fakeFile: FileModel = {
@@ -75,7 +75,7 @@ describe('UpdateFileComponent', () => {
     httpTestingController.verify();
   });
 
-  it('should alert error message after update() and receiving response error 404', () => {
+  it('should display alert message after receiving HTTP 404', () => {
     httpTestingController = TestBed.inject(HttpTestingController);
     spyOn(window, 'alert');
     const id = '123';
@@ -89,7 +89,7 @@ describe('UpdateFileComponent', () => {
     httpTestingController.verify();
   });
 
-  it('should alert error message after update() and receiving response error 413', () => {
+  it('should display alert message after receiving HTTP 413', () => {
     httpTestingController = TestBed.inject(HttpTestingController);
     spyOn(window, 'alert');
     const id = '123';
@@ -103,7 +103,7 @@ describe('UpdateFileComponent', () => {
     httpTestingController.verify();
   });
 
-  it('should not add files if file size is over the limit.', () => {
+  it('should not add file if the file size exceeds the limit.', () => {
     spyOn(window, 'alert');
     const fakeFiles = {
       target: {
@@ -118,7 +118,7 @@ describe('UpdateFileComponent', () => {
     expect(window.alert).toHaveBeenCalledWith('Files over 32MB are not supported.');
   });
 
-  it('should not add files if there are more than one file.', fakeAsync(() => {
+  it('should not add file if there are more than one file being selected.', fakeAsync(() => {
     const snackBar = TestBed.inject(MatSnackBar);
     const spy = spyOn(snackBar, 'open');
     const fakeFiles = {
@@ -136,7 +136,7 @@ describe('UpdateFileComponent', () => {
     });
   }));
 
-  it('should add file if file size is under the limit and no more than one file', () => {
+  it('should add file if the file size is within the limit', () => {
     const fakeFiles = {
       target: {
         files: [
@@ -148,7 +148,7 @@ describe('UpdateFileComponent', () => {
     expect(component.selectedFiles[0]).toEqual(fakeFiles.target.files[0]);
   });
 
-  it('should add tag', () => {
+  it('should add a tag', () => {
     const input = fixture.nativeElement.querySelector('#tags-input');
     input.value = 'tag1';
     const oldTags = component.updateTags.join(' ');
@@ -158,7 +158,7 @@ describe('UpdateFileComponent', () => {
     expect(component.updateTags.join(' ')).toEqual(newTags);
   })
 
-  it('should add tags', () => {
+  it('should add multiple tags', () => {
     const input = fixture.nativeElement.querySelector('#tags-input');
     input.value = 'tag5 tag6 tag7';
     const oldTags = component.updateTags.join(' ');
@@ -179,7 +179,7 @@ describe('UpdateFileComponent', () => {
     expect(component.updateTags.join(' ')).toEqual('tag1');
   })
 
-  it('should emit a closeFileUpdate event after click OK button on confirm dialog.', () => {
+  it('should emit a closeFileUpdate event after clicking on the confirm dialog', () => {
     const spy = spyOn(component.closeFileUpdate, 'emit');
     const confirmSpy = spyOn(window, 'confirm').and.returnValue(true);
     fixture.nativeElement.querySelector('.fixed.inset-0.bg-black.bg-opacity-50').click();

@@ -33,22 +33,22 @@ describe('MainService', () => {
     expect(service.getTags()).toEqual([]);
   });
 
-  it('checks if the file is an image', () => {
+  it('should check if the file is an image', () => {
     const type = service.checkFileType('test.jpg');
     expect(type).toEqual('photo');
   });
 
-  it('checks if the file is a video', () => {
+  it('should check if the file is a video', () => {
     const type = service.checkFileType('test.mp4');
     expect(type).toEqual('video');
   });
 
-  it('checks if the file is a pdf document', () => {
+  it('should check if the file is a pdf document', () => {
     const type = service.checkFileType('test.pdf');
     expect(type).toEqual('pdf');
   });
 
-  it('checks if the file type is unknown', () => {
+  it('should checks if the file type is unknown', () => {
     const type = service.checkFileType('test');
     expect(type).toEqual('unknown');
   });
