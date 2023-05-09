@@ -47,7 +47,7 @@ type bucketService struct {
 func (*bucketService) NewClient(ctx context.Context) (Client, error) {
 	client, err := storage.NewClient(ctx)
 	if err != nil {
-		log.Printf("cloudstore: failed to new storage client: %v", err)
+		return nil, err
 	}
 	return &bucketClient{client: client}, err
 }
@@ -96,9 +96,9 @@ func (c *bucketClient) Delete(ctx context.Context, paths ...string) error {
 		o := bucketHandler.Object(path)
 		if err := o.Delete(ctx); err != nil {
 			if errors.Is(err, storage.ErrObjectNotExist) {
-				log.Printf("ignore error, file %s does not exist while deleting", path)
+				log.Printf("storage: ignore error, file %s does not exist while deleting", path)
 			} else {
-				log.Printf("cloudstore: failed to delete file %s in bucket", path)
+				log.Printf("storage: failed to delete file %s in bucket", path)
 				return err
 			}
 		}
@@ -116,9 +116,9 @@ func (c *bucketClient) DeleteAll(ctx context.Context) error {
 			break
 		}
 		if err != nil {
-			log.Printf("cloudstore: object iteration error: %v", err)
+			log.Printf("storage: bucket object iteration error: %v", err)
+			return err
 		}
-
 		if err := c.Delete(ctx, attrs.Name); err != nil {
 			return err
 		}

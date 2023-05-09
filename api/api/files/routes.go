@@ -29,6 +29,7 @@ import (
 	"strings"
 	"time"
 
+	"google/jss/ldsgo/api"
 	"google/jss/ldsgo/config"
 	"google/jss/ldsgo/gcp/bucket"
 	"google/jss/ldsgo/gcp/firestore"
@@ -63,13 +64,7 @@ type FileMeta struct {
 // FileUploadRequest the request form data of file uploading.
 type FileUploadRequest struct {
 	Files []*multipart.FileHeader `form:"files" binding:"required"`
-	Tags  []string                `form:"tags" binding:"required"`
-}
-
-// FileUpdateRequest the request form data of file updating.
-type FileUpdateRequest struct {
-	File []*multipart.FileHeader `form:"file"`
-	Tags []string                `form:"tags" binding:"required"`
+	Tags  string                  `form:"tags" binding:"required"`
 }
 
 // FileUpdateResponse the response json of file updating.
@@ -226,49 +221,34 @@ func generateFileMeta(result *firestore.FileMeta) FileMeta {
 	return meta
 }
 
-// response composes the http response.
-func response(c *gin.Context, code int, body interface{}) {
-	if body == nil {
-		c.String(code, "")
-	} else {
-		c.JSON(code, body)
-	}
-}
-
 // PostFiles is function for /api/files POST endpoint.
 // This API uses `multipart/form-data` to upload multiple files along with the relevant tags in a single request.
 func PostFiles(c *gin.Context) {
-	var obj = new(FileUploadRequest)
-	if err := c.Bind(obj); err != nil {
-		response(c, http.StatusBadRequest, nil)
+	var req FileUploadRequest
+	if err := c.Bind(&req); err != nil {
+		api.Response(c, http.StatusBadRequest, nil)
 		return
 	}
-
-	form, err := c.MultipartForm()
-	if err != nil {
-		response(c, http.StatusBadRequest, nil)
-		return
-	}
-
-	files := form.File["files"]
-	tags := parseTags(form.Value["tags"][0])
+	tags := parseTags(req.Tags)
 
 	ctx := context.Background()
 	client, err := bucket.Service.NewClient(ctx)
 	if err != nil {
-		log.Panicln(err)
+		api.ResponseServerError(c, err)
+		return
 	}
 	defer client.Close() // nolint: errcheck
 
 	dbClient, err := firestore.Service.NewClient(ctx)
 	if err != nil {
-		log.Panicln(err)
+		api.ResponseServerError(c, err)
+		return
 	}
 	defer dbClient.Close() // nolint: errcheck
 
 	var filesarray []FileMeta
 	// Iterate all uploaded files.
-	for _, file := range files {
+	for _, file := range req.Files {
 		filename := filepath.Base(file.Filename)
 		log.Printf("process uploaded file: %s", filename)
 
@@ -276,7 +256,7 @@ func PostFiles(c *gin.Context) {
 		path := toBucketPath(id)
 		size, err := uploadToBucket(ctx, client, path, file)
 		if err != nil {
-			response(c, http.StatusBadRequest, nil)
+			api.Response(c, http.StatusBadRequest, nil)
 			return
 		}
 
@@ -290,7 +270,8 @@ func PostFiles(c *gin.Context) {
 		}
 		docSnap, err := dbClient.Create(ctx, id, record)
 		if err != nil {
-			log.Panicln(err)
+			api.ResponseServerError(c, err)
+			return
 		}
 
 		// Add data to response.
@@ -298,7 +279,7 @@ func PostFiles(c *gin.Context) {
 		filesarray = append(filesarray, item)
 		log.Printf("uploaded file: %s\n", filename)
 	}
-	response(c, http.StatusCreated, &FileListResponse{Files: filesarray})
+	api.Response(c, http.StatusCreated, &FileListResponse{Files: filesarray})
 }
 
 // UpdateFile is function for /api/files/{id} UPDATE endpoint.
@@ -309,7 +290,8 @@ func UpdateFile(c *gin.Context) {
 
 	dbClient, err := firestore.Service.NewClient(ctx)
 	if err != nil {
-		log.Panicln(err)
+		api.ResponseServerError(c, err)
+		return
 	}
 	defer dbClient.Close() // nolint: errcheck
 
@@ -317,15 +299,16 @@ func UpdateFile(c *gin.Context) {
 	meta, err := dbClient.Get(ctx, id)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
-			response(c, http.StatusNotFound, nil)
-			return
+			api.Response(c, http.StatusNotFound, nil)
+		} else {
+			api.ResponseServerError(c, err)
 		}
-		log.Panicln(err)
+		return
 	}
 
 	form, err := c.MultipartForm()
 	if err != nil {
-		response(c, http.StatusBadRequest, nil)
+		api.Response(c, http.StatusBadRequest, nil)
 		return
 	}
 	var file *multipart.FileHeader
@@ -346,14 +329,16 @@ func UpdateFile(c *gin.Context) {
 		log.Println("file:", file.Filename)
 		client, err := bucket.Service.NewClient(ctx)
 		if err != nil {
-			log.Panicln(err)
+			api.ResponseServerError(c, err)
+			return
 		}
 		defer client.Close() // nolint: errcheck
 
 		bucketFileID, newPath, size, err := updateBucketFile(ctx, client, meta.Path, file)
 		log.Println("bucketID:", bucketFileID, ", newPath:", newPath, ", err:", err)
 		if err != nil {
-			log.Panicln(err)
+			api.ResponseServerError(c, err)
+			return
 		}
 		fields[config.Config.LDSFirestoreFieldPath] = newPath
 		fields[config.Config.LDSFirestoreFieldName] = filepath.Base(file.Filename)
@@ -361,11 +346,12 @@ func UpdateFile(c *gin.Context) {
 	}
 	newMeta, err := dbClient.Merge(ctx, id, fields)
 	if err != nil {
-		log.Panicln(err)
+		api.ResponseServerError(c, err)
+		return
 	}
 
 	item := generateFileMeta(newMeta)
-	response(c, http.StatusOK, &FileUpdateResponse{File: item})
+	api.Response(c, http.StatusOK, &FileUpdateResponse{File: item})
 }
 
 // GetFileList is function for /api/files GET endpoint.
@@ -376,29 +362,32 @@ func GetFileList(c *gin.Context) {
 	orderNo := c.Query("orderNo")
 	size, err := parsePageSize(c.Query("size"))
 	if err != nil {
-		response(c, http.StatusBadRequest, nil)
+		api.Response(c, http.StatusBadRequest, nil)
 		return
 	}
 
 	ctx := context.Background()
 	dbClient, err := firestore.Service.NewClient(ctx)
 	if err != nil {
-		log.Panicln(err)
+		api.ResponseServerError(c, err)
+		return
 	}
 	defer dbClient.Close() // nolint: errcheck
 
 	docs, err := dbClient.ListByTags(ctx, tags, orderNo, size)
 	if err != nil {
-		log.Panicln(err)
+		api.ResponseServerError(c, err)
+		return
 	}
 
 	var results = []FileMeta{} // An empty slice is intended for the JSON response instead of nil.
+	// var results []FileMeta
 	for _, doc := range docs {
 		item := generateFileMeta(doc)
 		results = append(results, item)
 	}
 
-	response(c, http.StatusOK, &FileListResponse{Files: results})
+	api.Response(c, http.StatusOK, &FileListResponse{Files: results})
 }
 
 // DeleteFile is function for /api/files/{id} DELETE endpoint.
@@ -410,7 +399,8 @@ func DeleteFile(c *gin.Context) {
 	var err error
 	dbClient, err := firestore.Service.NewClient(ctx)
 	if err != nil {
-		log.Panicln(err)
+		api.ResponseServerError(c, err)
+		return
 	}
 	defer dbClient.Close() // nolint: errcheck
 
@@ -418,25 +408,29 @@ func DeleteFile(c *gin.Context) {
 	doc, err := dbClient.Get(ctx, id)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
-			response(c, http.StatusNotFound, nil)
-			return
+			api.Response(c, http.StatusNotFound, nil)
+		} else {
+			api.ResponseServerError(c, err)
 		}
-		log.Panicln(err)
+		return
 	}
 
 	client, err := bucket.Service.NewClient(ctx)
 	if err != nil {
-		log.Panicln(err)
+		api.ResponseServerError(c, err)
+		return
 	}
 	defer client.Close() // nolint: errcheck
 
 	if err := deleteBucketFile(ctx, client, doc.Path); err != nil {
-		log.Panicln(err)
+		api.ResponseServerError(c, err)
+		return
 	}
 	if err := dbClient.Delete(ctx, id); err != nil {
-		log.Panicln(err)
+		api.ResponseServerError(c, err)
+		return
 	}
 
 	log.Printf("object %q deleted\n", id)
-	response(c, http.StatusNoContent, nil)
+	api.Response(c, http.StatusNoContent, nil)
 }

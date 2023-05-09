@@ -174,7 +174,7 @@ func getByDoc(ctx context.Context, doc *firestore.DocumentRef) (*FileMeta, error
 
 	snapshot, err := doc.Get(ctx)
 	if err != nil {
-		log.Printf("failed to get document from firestore: %v", err)
+		log.Printf("firestore: failed to get document from firestore: %v", err)
 		return nil, err
 	}
 	result, err := newFileMeta(snapshot)
@@ -187,15 +187,15 @@ func getByDoc(ctx context.Context, doc *firestore.DocumentRef) (*FileMeta, error
 func newFileMeta(snapshot *firestore.DocumentSnapshot) (*FileMeta, error) {
 	data := snapshot.Data()
 
-	var result = new(FileMeta)
+	var result FileMeta
 	if err := result.Set(data); err != nil {
-		return result, fmt.Errorf("failed to format result snapshot: %v, err: %w", snapshot, err)
+		return &result, fmt.Errorf("failed to format result snapshot: %v, err: %w", snapshot, err)
 	}
 
 	result.ID = snapshot.Ref.ID
 	result.CreateTime = snapshot.CreateTime
 	result.UpdateTime = snapshot.UpdateTime
-	return result, nil
+	return &result, nil
 }
 
 // ListByTags lists the FileMeta from given tags.

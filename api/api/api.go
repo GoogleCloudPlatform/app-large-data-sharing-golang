@@ -26,6 +26,20 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Response composes the http Response.
+func Response(c *gin.Context, code int, body interface{}) {
+	if body == nil {
+		c.String(code, "")
+	} else {
+		c.JSON(code, body)
+	}
+}
+
+func ResponseServerError(c *gin.Context, err error) {
+	log.Printf("encounter server error %v", err)
+	Response(c, http.StatusInternalServerError, "")
+}
+
 // Healthcheck is function for /api/healthchecker GET endpoint.
 // This API is provided for Cloud Run to check the health of the server.
 func Healthcheck(c *gin.Context) {
@@ -40,23 +54,26 @@ func Reset(c *gin.Context) {
 
 	dbClient, err := firestore.Service.NewClient(ctx)
 	if err != nil {
-		log.Panicln(err)
+		ResponseServerError(c, err)
+		return
 	}
 	defer dbClient.Close() // nolint: errcheck
 
 	if err := dbClient.DeleteAll(ctx); err != nil {
-		log.Panicln(err)
+		ResponseServerError(c, err)
+		return
 	}
 
 	client, err := bucket.Service.NewClient(ctx)
 	if err != nil {
-		log.Panicln(err)
+		ResponseServerError(c, err)
+		return
 	}
 	defer client.Close() // nolint: errcheck
 
 	if err := client.DeleteAll(ctx); err != nil {
-		c.String(400, err.Error())
+		ResponseServerError(c, err)
 		return
 	}
-	c.String(204, "success")
+	c.String(http.StatusNoContent, "success")
 }
