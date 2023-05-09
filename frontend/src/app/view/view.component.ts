@@ -22,7 +22,6 @@ import { MainService } from '../service/main.service';
 import { Subscription } from 'rxjs';
 import * as ExifReader from 'exifreader';
 import { DOCUMENT } from '@angular/common';
-import { MatSnackBar } from '@angular/material/snack-bar';
 
 @Component({
   selector: 'app-view',
@@ -60,8 +59,7 @@ export class ViewComponent {
     private mainService: MainService,
     private router: Router,
     private activatedRoute: ActivatedRoute,
-    private session: SessionStorageService,
-    public snackBar: MatSnackBar
+    private session: SessionStorageService
   ) { }
 
   ngOnInit(): void {
@@ -156,7 +154,7 @@ export class ViewComponent {
         },
         err => {
           if (err.status === 404) {
-            this.snackBar.open('The file you are trying to upload/update does not exist. Please update/upload a correct file.', 'Close', { horizontalPosition: 'center', verticalPosition: 'top', duration: 3000 });
+            alert('The file you are trying to upload/update does not exist. Please update/upload a correct file.');
           }
         }
       )
