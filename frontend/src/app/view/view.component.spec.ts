@@ -156,12 +156,12 @@ describe('ViewComponent', () => {
 
   it('should display an alert after receiving HTTP 404 from the delete function', () => {
     fixture.detectChanges();
-    spyOn(window, 'alert');
+    spyOn(component.snackBar,"open").and.callThrough();
     component.deleteId = 'test123';
     component.delete();
     const req = httpTestingController.expectOne(`/api/files/${component.deleteId}`);
     req.flush('Not found', { status: 404, statusText: 'Not found' });
-    expect(window.alert).toHaveBeenCalledWith('The file you are trying to upload/update does not exist. Please update/upload a correct file.');
+    expect(component.snackBar.open).toHaveBeenCalled();
   });
 
   it('should clear the tags when executing handleSearchEvent with { eventName: "clearTag" }', () => {

@@ -93,7 +93,7 @@ describe('ListComponent', () => {
     expect(window.scrollY).toBe(0);
   });
 
-  it('should scroll to the buttom', () => {
+  it('should scroll to the bottom', () => {
     const expectLength = component.listArr.length;
     window.scrollTo({ top: 1080, behavior: 'smooth' });
     expect(component.listArr.length).toBeGreaterThanOrEqual(expectLength);
