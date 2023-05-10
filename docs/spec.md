@@ -73,6 +73,7 @@ The update action should remove the old file from the bucketk, create new one, a
  
  - Response Code:
     - `200`: OK.   
+    - `400`: Bad Request.
     - `404`: Not Found (file not found).
 
 - Response Body:

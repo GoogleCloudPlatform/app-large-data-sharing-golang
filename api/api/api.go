@@ -1,20 +1,44 @@
+// Copyright 2023 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // Package api the REST API of group "/api".
 package api
 
 import (
 	"context"
-	"errors"
 	"log"
 	"net/http"
-	"strings"
 
-	"cloud.google.com/go/storage"
-	"github.com/cienet/ldsgo/config"
-	"github.com/cienet/ldsgo/gcp/bucket"
-	"github.com/cienet/ldsgo/gcp/firestore"
+	"google/jss/ldsgo/gcp/bucket"
+	"google/jss/ldsgo/gcp/firestore"
+
 	"github.com/gin-gonic/gin"
-	"google.golang.org/api/iterator"
 )
+
+// Response composes the http Response.
+func Response(c *gin.Context, code int, body interface{}) {
+	if body == nil {
+		c.String(code, "")
+	} else {
+		c.JSON(code, body)
+	}
+}
+
+func ResponseServerError(c *gin.Context, err error) {
+	log.Printf("encounter server error %v", err)
+	Response(c, http.StatusInternalServerError, "")
+}
 
 // Healthcheck is function for /api/healthchecker GET endpoint.
 // This API is provided for Cloud Run to check the health of the server.
@@ -25,62 +49,31 @@ func Healthcheck(c *gin.Context) {
 // Reset is function for /api/reset DELETE endpoint.
 // This API resets the server, deleting all files in the system.
 func Reset(c *gin.Context) {
+	log.Println("start to reset server")
 	ctx := context.Background()
-	dbClient := firestore.NewClient(ctx)
-	col := dbClient.Collection("fileMeta")
-	bulkwriter := dbClient.BulkWriter(ctx)
-	for {
-		// Delete 50 documents per time.
-		iter := col.Limit(50).Documents(ctx)
-		numDeleted := 0
 
-		for {
-			doc, err := iter.Next()
-			if errors.Is(err, iterator.Done) {
-				break
-			}
-			if err != nil {
-				log.Printf("Firestore document iteration error: %v", err)
-			}
+	dbClient, err := firestore.Service.NewClient(ctx)
+	if err != nil {
+		ResponseServerError(c, err)
+		return
+	}
+	defer dbClient.Close() // nolint: errcheck
 
-			_, err = bulkwriter.Delete(doc.Ref)
-			if err != nil {
-				log.Printf("Firestore document deleted %v error: %v", doc.Ref.ID, err)
-			}
-
-			numDeleted++
-		}
-
-		if numDeleted == 0 {
-			bulkwriter.End()
-			break
-		}
-
-		bulkwriter.Flush()
+	if err := dbClient.DeleteAll(ctx); err != nil {
+		ResponseServerError(c, err)
+		return
 	}
 
-	client := bucket.NewClient(ctx)
-	bucketHandler := client.Bucket(config.Config.LDSBucket)
-	it := bucketHandler.Objects(ctx, nil)
-	for {
-		attrs, err := it.Next()
-		if errors.Is(err, iterator.Done) {
-			break
-		}
-		if err != nil {
-			log.Printf("object iteration error: %v", err)
-		}
-
-		if failPath, err := bucket.Delete(ctx, client, attrs.Name); err != nil {
-			if !strings.Contains(attrs.Name, "small") || errors.Is(err, storage.ErrObjectNotExist) {
-				// Ignore the error of the thumbnail does not exist.
-				log.Printf("Storage object (%v) deleting failed", failPath)
-				c.String(400, err.Error())
-				return
-			}
-		}
+	client, err := bucket.Service.NewClient(ctx)
+	if err != nil {
+		ResponseServerError(c, err)
+		return
 	}
+	defer client.Close() // nolint: errcheck
 
-	c.String(204, "success")
-
+	if err := client.DeleteAll(ctx); err != nil {
+		ResponseServerError(c, err)
+		return
+	}
+	c.String(http.StatusNoContent, "success")
 }

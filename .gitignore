@@ -1,0 +1,56 @@
+# IDEs and editors
+.settings/
+.classpath
+.project
+.idea/
+*.iml
+*.iws
+*.ipr
+*.code-workspace
+.c9/
+*.launch
+*.sublime-workspace
+
+# Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+.history/*
+
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+
+# Log files
+*.log
+npm-debug.log*
+yarn-error.log
+
+# NodeJS files
+node_modules/
+frontend/package-lock.json
+.npm
+
+# Local files and compiled out
+tmp
+data/*
+*.swp
+dist
+out-tsc
+bazel-out
+
+# Miscellaneous
+frontend/.angular/cache
+frontend/.sass-cache/
+frontend/connect.lock
+frontend/coverage
+frontend/libpeerconnection.log
+frontend/testem.log
+frontend/typings
+
+# System files
+.DS_Store
+Thumbs.db

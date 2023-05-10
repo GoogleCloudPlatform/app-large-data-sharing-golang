@@ -1,3 +1,17 @@
+// Copyright 2023 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // Package files defines REST API /api/files.
 package files
 
@@ -15,14 +29,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cienet/ldsgo/config"
-	"github.com/cienet/ldsgo/gcp/bucket"
-	"github.com/cienet/ldsgo/gcp/firestore"
+	"google/jss/ldsgo/api"
+	"google/jss/ldsgo/config"
+	"google/jss/ldsgo/gcp/bucket"
+	"google/jss/ldsgo/gcp/firestore"
+
 	"github.com/disintegration/imaging"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"cloud.google.com/go/storage"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"golang.org/x/exp/slices"
@@ -49,13 +64,7 @@ type FileMeta struct {
 // FileUploadRequest the request form data of file uploading.
 type FileUploadRequest struct {
 	Files []*multipart.FileHeader `form:"files" binding:"required"`
-	Tags  []string                `form:"tags" binding:"required"`
-}
-
-// FileUpdateRequest the request form data of file updating.
-type FileUpdateRequest struct {
-	File []*multipart.FileHeader `form:"file"`
-	Tags []string                `form:"tags" binding:"required"`
+	Tags  string                  `form:"tags" binding:"required"`
 }
 
 // FileUpdateResponse the response json of file updating.
@@ -101,10 +110,10 @@ func parsePageSize(sizeParam string) (int, error) {
 }
 
 // writeFileToBucket uploads file to cloud storage bucket.
-func writeFileToBucket(ctx context.Context, client *storage.Client, path string, file *multipart.FileHeader, transcoder bucket.Transcoder) (size int64, err error) {
+func writeFileToBucket(ctx context.Context, client bucket.Client, path string, file *multipart.FileHeader, transcoder bucket.Transcoder) (size int64, err error) {
 	defer func() {
 		if err != nil {
-			log.Printf("Fail to upload file: %s to path: %s error: %s", file.Filename, path, err)
+			log.Printf("failed to upload file: %s to path: %s error: %v", file.Filename, path, err)
 		}
 	}()
 
@@ -114,16 +123,11 @@ func writeFileToBucket(ctx context.Context, client *storage.Client, path string,
 	}
 	defer f.Close() // nolint: errcheck
 
-	if transcoder != nil {
-		size, err = bucket.TransWrite(ctx, client, path, f, transcoder)
-	} else {
-		size, err = bucket.Write(ctx, client, path, f)
-	}
-	return size, err
+	return client.TransWrite(ctx, path, f, transcoder)
 }
 
 // writeThumbnailToBucket uploads thumbnail to bucket.
-func writeThumbnailToBucket(ctx context.Context, client *storage.Client, path string, file *multipart.FileHeader) (int64, error) {
+func writeThumbnailToBucket(ctx context.Context, client bucket.Client, path string, file *multipart.FileHeader) (int64, error) {
 	thumbnailPath := toThumbnailPath(path)
 	return writeFileToBucket(ctx, client, thumbnailPath, file, thumbnailTranscoder)
 }
@@ -132,7 +136,7 @@ func writeThumbnailToBucket(ctx context.Context, client *storage.Client, path st
 func thumbnailTranscoder(thumbnailWriter io.Writer, imageReader io.Reader) (int64, error) {
 	img, err := imaging.Decode(imageReader)
 	if err != nil {
-		log.Printf("File decoded failed: %s", err)
+		log.Printf("file decoded failed: %s", err)
 		return 0, err
 	}
 
@@ -147,7 +151,7 @@ func thumbnailTranscoder(thumbnailWriter io.Writer, imageReader io.Reader) (int6
 }
 
 // uploadToBucket uploads file with thumbnail to bucket.
-func uploadToBucket(ctx context.Context, client *storage.Client, path string, file *multipart.FileHeader) (int64, error) {
+func uploadToBucket(ctx context.Context, client bucket.Client, path string, file *multipart.FileHeader) (int64, error) {
 	size, err := writeFileToBucket(ctx, client, path, file, nil)
 	if err != nil {
 		return -1, err
@@ -164,15 +168,12 @@ func uploadToBucket(ctx context.Context, client *storage.Client, path string, fi
 }
 
 // updateBucketFile deletes old file with thumbnail and upload new one to bucket.
-func updateBucketFile(ctx context.Context, path string, file *multipart.FileHeader) (id string, newPath string, size int64, err error) {
+func updateBucketFile(ctx context.Context, client bucket.Client, path string, file *multipart.FileHeader) (id string, newPath string, size int64, err error) {
 	defer func() {
 		if err != nil {
-			log.Printf("Update bucket path %s failed: %s", path, err)
+			log.Printf("update bucket path %s failed: %v", path, err)
 		}
 	}()
-
-	client := bucket.NewClient(ctx)
-	defer client.Close() // nolint: errcheck
 
 	if err = deleteBucketFile(ctx, client, path); err != nil {
 		return
@@ -184,14 +185,14 @@ func updateBucketFile(ctx context.Context, path string, file *multipart.FileHead
 }
 
 // deleteBucketFile deletes file with thumbnail from cloud storage bucket.
-func deleteBucketFile(ctx context.Context, client *storage.Client, path string) error {
+func deleteBucketFile(ctx context.Context, client bucket.Client, path string) error {
 	if path == "" {
 		log.Println("no path to delete")
 		return nil
 	}
 	thumbnailPath := toThumbnailPath(path)
 	// The path order is matter, delete file before thumbnail.
-	if _, err := bucket.Delete(ctx, client, path, thumbnailPath); err != nil {
+	if err := client.Delete(ctx, path, thumbnailPath); err != nil {
 		return err
 	}
 	return nil
@@ -220,73 +221,65 @@ func generateFileMeta(result *firestore.FileMeta) FileMeta {
 	return meta
 }
 
-// response composes the http response.
-func response(c *gin.Context, code int, body interface{}) {
-	if body == nil {
-		c.String(code, "")
-	} else {
-		c.JSON(code, body)
-	}
-}
-
 // PostFiles is function for /api/files POST endpoint.
 // This API uses `multipart/form-data` to upload multiple files along with the relevant tags in a single request.
 func PostFiles(c *gin.Context) {
-	obj := &FileUploadRequest{}
-	if err := c.Bind(obj); err != nil {
-		response(c, http.StatusBadRequest, nil)
+	var req FileUploadRequest
+	if err := c.Bind(&req); err != nil {
+		api.Response(c, http.StatusBadRequest, nil)
 		return
 	}
-
-	form, err := c.MultipartForm()
-	if err != nil {
-		response(c, http.StatusBadRequest, nil)
-		return
-	}
-
-	files := form.File["files"]
-	tags := parseTags(form.Value["tags"][0])
+	tags := parseTags(req.Tags)
 
 	ctx := context.Background()
-	client := bucket.NewClient(ctx)
+	client, err := bucket.Service.NewClient(ctx)
+	if err != nil {
+		api.ResponseServerError(c, err)
+		return
+	}
 	defer client.Close() // nolint: errcheck
 
-	dbClient := firestore.NewClient(ctx)
+	dbClient, err := firestore.Service.NewClient(ctx)
+	if err != nil {
+		api.ResponseServerError(c, err)
+		return
+	}
 	defer dbClient.Close() // nolint: errcheck
 
 	var filesarray []FileMeta
 	// Iterate all uploaded files.
-	for _, file := range files {
+	for _, file := range req.Files {
 		filename := filepath.Base(file.Filename)
-		log.Println("Process uploaded file:", filename)
+		log.Printf("process uploaded file: %s", filename)
 
 		id := uuid.New().String()
 		path := toBucketPath(id)
 		size, err := uploadToBucket(ctx, client, path, file)
 		if err != nil {
-			response(c, http.StatusBadRequest, nil)
+			api.Response(c, http.StatusBadRequest, nil)
 			return
 		}
 
 		// Add data to firestore.
-		record := &firestore.FileMetaRec{
-			Path:     path,
-			Name:     filename,
-			FileSize: size,
-			Tags:     tags,
-			OrderNo:  getOrderNo(id),
+		record := map[string]interface{}{
+			config.Config.LDSFirestoreFieldPath:    path,
+			config.Config.LDSFirestoreFieldName:    filename,
+			config.Config.LDSFirestoreFieldSize:    size,
+			config.Config.LDSFirestoreFieldTags:    tags,
+			config.Config.LDSFirestoreFieldOrderNo: getOrderNo(id),
 		}
-		docSnap, err := firestore.Create(ctx, dbClient, id, record)
+		docSnap, err := dbClient.Create(ctx, id, record)
 		if err != nil {
-			log.Panicln(err)
+			api.ResponseServerError(c, err)
+			return
 		}
 
 		// Add data to response.
 		item := generateFileMeta(docSnap)
 		filesarray = append(filesarray, item)
-		log.Printf("Uploaded file: %v\n", filename)
+		log.Printf("uploaded file: %s\n", filename)
 	}
-	response(c, http.StatusCreated, &FileListResponse{Files: filesarray})
+	api.Response(c, http.StatusCreated, &FileListResponse{Files: filesarray})
 }
 
 // UpdateFile is function for /api/files/{id} UPDATE endpoint.
@@ -295,22 +288,29 @@ func UpdateFile(c *gin.Context) {
 	ctx := context.Background()
 	id := c.Param("id")
 
-	var err error
-	dbClient := firestore.NewClient(ctx)
+	dbClient, err := firestore.Service.NewClient(ctx)
+	if err != nil {
+		api.ResponseServerError(c, err)
+		return
+	}
 	defer dbClient.Close() // nolint: errcheck
 
 	// Make suer the file exists before updating.
-	meta, err := firestore.Get(ctx, dbClient, id)
+	meta, err := dbClient.Get(ctx, id)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
-			response(c, http.StatusNotFound, nil)
-			return
+			api.Response(c, http.StatusNotFound, nil)
 		} else {
-			log.Panicln(err)
+			api.ResponseServerError(c, err)
 		}
+		return
 	}
 
-	form, _ := c.MultipartForm()
+	form, err := c.MultipartForm()
+	if err != nil {
+		api.Response(c, http.StatusBadRequest, nil)
+		return
+	}
 	var file *multipart.FileHeader
 	tags := parseTags(form.Value["tags"][0])
 	log.Println("tags:", tags)
@@ -322,27 +322,36 @@ func UpdateFile(c *gin.Context) {
 	}
 
 	fields := map[string]interface{}{
-		firestore.FieldTags:    tags,
-		firestore.FieldOrderNo: getOrderNo(id),
+		config.Config.LDSFirestoreFieldTags:    tags,
+		config.Config.LDSFirestoreFieldOrderNo: getOrderNo(id),
 	}
 	if file != nil {
 		log.Println("file:", file.Filename)
-		bucketFileID, newPath, size, err := updateBucketFile(ctx, meta.Path, file)
+		client, err := bucket.Service.NewClient(ctx)
+		if err != nil {
+			api.ResponseServerError(c, err)
+			return
+		}
+		defer client.Close() // nolint: errcheck
+
+		bucketFileID, newPath, size, err := updateBucketFile(ctx, client, meta.Path, file)
 		log.Println("bucketID:", bucketFileID, ", newPath:", newPath, ", err:", err)
 		if err != nil {
-			log.Panicln(err)
+			api.ResponseServerError(c, err)
+			return
 		}
-		fields[firestore.FieldPath] = newPath
-		fields[firestore.FieldName] = filepath.Base(file.Filename)
-		fields[firestore.FieldSize] = size
+		fields[config.Config.LDSFirestoreFieldPath] = newPath
+		fields[config.Config.LDSFirestoreFieldName] = filepath.Base(file.Filename)
+		fields[config.Config.LDSFirestoreFieldSize] = size
 	}
-	newMeta, err := firestore.Merge(ctx, dbClient, id, &fields)
+	newMeta, err := dbClient.Merge(ctx, id, fields)
 	if err != nil {
-		log.Panicln(err)
+		api.ResponseServerError(c, err)
+		return
 	}
 
 	item := generateFileMeta(newMeta)
-	response(c, http.StatusOK, &FileUpdateResponse{File: item})
+	api.Response(c, http.StatusOK, &FileUpdateResponse{File: item})
 }
 
 // GetFileList is function for /api/files GET endpoint.
@@ -353,26 +362,32 @@ func GetFileList(c *gin.Context) {
 	orderNo := c.Query("orderNo")
 	size, err := parsePageSize(c.Query("size"))
 	if err != nil {
-		response(c, http.StatusBadRequest, nil)
+		api.Response(c, http.StatusBadRequest, nil)
 		return
 	}
 
 	ctx := context.Background()
-	dbClient := firestore.NewClient(ctx)
+	dbClient, err := firestore.Service.NewClient(ctx)
+	if err != nil {
+		api.ResponseServerError(c, err)
+		return
+	}
 	defer dbClient.Close() // nolint: errcheck
 
-	docs, err := firestore.ListByTags(ctx, dbClient, tags, orderNo, size)
+	docs, err := dbClient.ListByTags(ctx, tags, orderNo, size)
 	if err != nil {
-		log.Panicln(err)
+		api.ResponseServerError(c, err)
+		return
 	}
 
-	results := []FileMeta{}
+	var results = []FileMeta{} // An empty slice is intended for the JSON response instead of nil.
+	// var results []FileMeta
 	for _, doc := range docs {
 		item := generateFileMeta(doc)
 		results = append(results, item)
 	}
 
-	response(c, http.StatusOK, &FileListResponse{Files: results})
+	api.Response(c, http.StatusOK, &FileListResponse{Files: results})
 }
 
 // DeleteFile is function for /api/files/{id} DELETE endpoint.
@@ -382,30 +397,40 @@ func DeleteFile(c *gin.Context) {
 	id := c.Param("id")
 
 	var err error
-	dbClient := firestore.NewClient(ctx)
+	dbClient, err := firestore.Service.NewClient(ctx)
+	if err != nil {
+		api.ResponseServerError(c, err)
+		return
+	}
 	defer dbClient.Close() // nolint: errcheck
 
 	// Delete data in firestore.
-	doc, err := firestore.Get(ctx, dbClient, id)
+	doc, err := dbClient.Get(ctx, id)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
-			response(c, http.StatusNotFound, nil)
-			return
+			api.Response(c, http.StatusNotFound, nil)
 		} else {
-			log.Panicln(err)
+			api.ResponseServerError(c, err)
 		}
+		return
 	}
 
-	client := bucket.NewClient(ctx)
+	client, err := bucket.Service.NewClient(ctx)
+	if err != nil {
+		api.ResponseServerError(c, err)
+		return
+	}
 	defer client.Close() // nolint: errcheck
 
 	if err := deleteBucketFile(ctx, client, doc.Path); err != nil {
-		log.Panicln(err)
+		api.ResponseServerError(c, err)
+		return
 	}
-	if err := firestore.Delete(ctx, dbClient, id); err != nil {
-		log.Panicln(err)
+	if err := dbClient.Delete(ctx, id); err != nil {
+		api.ResponseServerError(c, err)
+		return
 	}
 
-	log.Printf("Object %q deleted.\n", id)
-	response(c, http.StatusNoContent, nil)
+	log.Printf("object %q deleted\n", id)
+	api.Response(c, http.StatusNoContent, nil)
 }
