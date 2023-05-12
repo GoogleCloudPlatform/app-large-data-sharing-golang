@@ -27,6 +27,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MainService } from '../service/main.service';
 import { fromEvent } from 'rxjs';
 import { map, tap } from 'rxjs/operators';
+import { FileModel } from '../type/file-model';
 
 
 @Component({
@@ -48,7 +49,7 @@ export class UpdateFileComponent implements OnChanges {
   isUpdating: boolean = false;
 
   @ViewChild('fileInput') fileInput!: ElementRef;
-  @Input() updateItem!: any;
+  @Input() updateItem!: FileModel;
   @Output() closeFileUpdate = new EventEmitter<void>();
   @Output() updateImg = new EventEmitter();
   @Output() closePopup = new EventEmitter();
@@ -68,24 +69,27 @@ export class UpdateFileComponent implements OnChanges {
       this.selectedFiles = [currentValue];
     }
   }
-  readURL(event:any) {
-    if (event.target.files && event.target.files[0]) {
+  readURL(event: Event) {
+    const fileInputElement = event.target as HTMLInputElement;
+    if (fileInputElement.files && fileInputElement.files[0]) {
       var reader = new FileReader();
 
       reader.onload = (event:any) => {
        this.updateItem.url = event.target.result;
       }
 
-      reader.readAsDataURL(event.target.files[0]);
+      reader.readAsDataURL(fileInputElement.files[0]);
     }
   }
 
   ngAfterViewInit() {
-    fromEvent(this.fileInput.nativeElement, 'change').pipe(
-      map((event: any) => event.target.files[0]),
-      tap((file: any) => {
-        this.readURL(event);
-        this.updateItem.name = file.name;
+    fromEvent<Event>(this.fileInput.nativeElement, 'change').pipe(
+      tap((event) => {
+        const fileInputElement = event.target as HTMLInputElement;
+        if (fileInputElement.files && fileInputElement.files[0]) {
+          this.readURL(event);
+          this.updateItem.name = fileInputElement.files[0].name;
+        }
       })
     ).subscribe();
   }

@@ -104,7 +104,7 @@ export class ListComponent {
     this.onUploadFile = !this.onUploadFile;
     this.onUploadFile ? document.body.style.overflow = "hidden" : document.body.style.overflow = "auto";
     if (uploadSucess) {
-      // clear ${this.tags} and resfresh homePage if upload is suscess
+      // clear ${this.tags} and refresh homePage if upload is suscess
       this.refreshHome();
     }
   }

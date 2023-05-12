@@ -40,37 +40,40 @@ describe('UpdateFileComponent', () => {
       ],
     })
     .compileComponents();
+    const id = '123';
+    const fakeFile: FileModel = {
+      id,
+      "name": "file1",
+      "tags": [
+          "tag1",
+          "tag2"
+      ],
+      "path": "test/file1",
+      "url": "/resource/3425e838-c58b-4d22-8a9a-400dfb3f1406",
+      "thumbUrl": "",
+      "orderNo": "1682661978696-3425e838-c58b-4d22-8a9a-400dfb3f1406",
+      "size": 1000,
+      "createTime": "2023-04-28T06:06:18.696Z",
+      "updateTime": "2023-04-28T06:06:18.696Z"
+    };
 
     // httpTestingController = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(UpdateFileComponent);
     component = fixture.componentInstance;
+    component.updateItem = fakeFile;
     fixture.detectChanges();
   });
 
   it('should create the component', () => {
     expect(component).toBeTruthy();
   });
-
+   
   it('should update successfully', () => {
     httpTestingController = TestBed.inject(HttpTestingController);
-    const id = '123';
-    const fakeFile: FileModel = {
-      id,
-      createTime: '',
-      name: '',
-      path: '',
-      tags: [],
-      thumbUrl: '',
-      url: '',
-      updateTime: '',
-      orderNo: '',
-      size: 99,
-    }
-    component.updateItem = { id };
     component.update();
     expect(component.isUpdating).toBeTrue()
-    const req = httpTestingController.expectOne(`api/files/${id}`);
-    req.flush({ file: fakeFile });
+    const req = httpTestingController.expectOne(`api/files/${component.updateItem.id}`);
+    req.flush({ file: component.updateItem });
     expect(component.isUpdating).toBeFalse();
     httpTestingController.verify();
   });
@@ -78,11 +81,9 @@ describe('UpdateFileComponent', () => {
   it('should display alert message after receiving HTTP 404', () => {
     httpTestingController = TestBed.inject(HttpTestingController);
     spyOn(window, 'alert');
-    const id = '123';
-    component.updateItem = { id };
     component.update();
     expect(component.isUpdating).toBeTrue()
-    const req = httpTestingController.expectOne(`api/files/${id}`);
+    const req = httpTestingController.expectOne(`api/files/${component.updateItem.id}`);
     req.flush('Not found', { status: 404, statusText: 'Not found' });
     expect(component.isUpdating).toBeFalse()
     expect(window.alert).toHaveBeenCalledWith('The file you are trying to upload/update does not exist. Please update/upload a correct file.');
@@ -92,11 +93,9 @@ describe('UpdateFileComponent', () => {
   it('should display alert message after receiving HTTP 413', () => {
     httpTestingController = TestBed.inject(HttpTestingController);
     spyOn(window, 'alert');
-    const id = '123';
-    component.updateItem = { id };
     component.update();
     expect(component.isUpdating).toBeTrue()
-    const req = httpTestingController.expectOne(`api/files/${id}`);
+    const req = httpTestingController.expectOne(`api/files/${component.updateItem.id}`);
     req.flush('Not found', { status: 413, statusText: 'Files over 32MB are not supported.' });
     expect(component.isUpdating).toBeFalse()
     expect(window.alert).toHaveBeenCalledWith('Files over 32MB are not supported.');
