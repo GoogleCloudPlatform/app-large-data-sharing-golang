@@ -1,3 +1,16 @@
+// Copyright 2023 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 import {
   Component,
   ViewChild,
@@ -12,6 +25,10 @@ import { HttpClient } from '@angular/common/http';
 import { Validators, FormBuilder } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MainService } from '../service/main.service';
+import { fromEvent } from 'rxjs';
+import { map, tap } from 'rxjs/operators';
+import { FileModel } from '../type/file-model';
+
 
 @Component({
   selector: 'app-update-file',
@@ -29,9 +46,10 @@ export class UpdateFileComponent implements OnChanges {
   updateTags: string[] = [];
   uploadInProgress: boolean = false;
   showHint: boolean = false;
+  isUpdating: boolean = false;
 
   @ViewChild('fileInput') fileInput!: ElementRef;
-  @Input() updateItem!: any;
+  @Input() updateItem!: FileModel;
   @Output() closeFileUpdate = new EventEmitter<void>();
   @Output() updateImg = new EventEmitter();
   @Output() closePopup = new EventEmitter();
@@ -51,6 +69,30 @@ export class UpdateFileComponent implements OnChanges {
       this.selectedFiles = [currentValue];
     }
   }
+  readURL(event: Event) {
+    const fileInputElement = event.target as HTMLInputElement;
+    if (fileInputElement.files && fileInputElement.files[0]) {
+      var reader = new FileReader();
+
+      reader.onload = (event:any) => {
+       this.updateItem.url = event.target.result;
+      }
+
+      reader.readAsDataURL(fileInputElement.files[0]);
+    }
+  }
+
+  ngAfterViewInit() {
+    fromEvent<Event>(this.fileInput.nativeElement, 'change').pipe(
+      tap((event) => {
+        const fileInputElement = event.target as HTMLInputElement;
+        if (fileInputElement.files && fileInputElement.files[0]) {
+          this.readURL(event);
+          this.updateItem.name = fileInputElement.files[0].name;
+        }
+      })
+    ).subscribe();
+  }
 
   alertBar() {
     this._snackBar.open('You can only select one file.', '', {
@@ -65,13 +107,16 @@ export class UpdateFileComponent implements OnChanges {
     this.selectedFiles.forEach((files) => {
       formData.append('file', files);
     });
+    this.isUpdating = true;
     this.http.put(`api/files/${this.updateItem.id}`, formData).subscribe(
       res => {
+        this.isUpdating = false;
         this.fileForm.reset();
         this.updateImg.emit(res);
         this.closeFileUpdate.emit();
       },
       err => {
+        this.isUpdating = false;
         if (err.status === 404) {
           alert('The file you are trying to upload/update does not exist. Please update/upload a correct file.');
         } else if (err.status === 413) {
@@ -79,7 +124,6 @@ export class UpdateFileComponent implements OnChanges {
         }
       }
     );
-
   }
 
   checkFileType(fileName: string): string {

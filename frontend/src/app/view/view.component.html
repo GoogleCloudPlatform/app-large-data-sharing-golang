@@ -1,3 +1,15 @@
+<!--
+Copyright 2023 Google LLC
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    https://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
 <app-header></app-header>
 <div class="px-3 py-1 view">
   <div class="container m-auto max-w-screen-lg">
@@ -27,23 +39,23 @@
         <div class="content-header">
           <div class="mb-3">
             <h1>File name:</h1>
-            <h3>{{ viewData?.name }}</h3>
+            <h3>{{ viewData.name }}</h3>
           </div>
           <div class="mb-4">
             <h1>Create time:</h1>
-            <h3>{{ viewData?.createTime | date : "YYYY-MM-dd HH:mm:ss" }}</h3>
+            <h3>{{ viewData.createTime | date : "YYYY-MM-dd HH:mm:ss" }}</h3>
           </div>
           <div class="mb-4">
             <h1>Update time:</h1>
-            <h3>{{ viewData?.updateTime | date : "YYYY-MM-dd HH:mm:ss" }}</h3>
+            <h3>{{ viewData.updateTime | date : "YYYY-MM-dd HH:mm:ss" }}</h3>
           </div>
           <div class="mb-4">
             <h1>Resolution:</h1>
-            <h3>{{ viewData?.resolution }}</h3>
+            <h3>{{ viewData.resolution }}</h3>
           </div>
           <div class="mb-4">
             <h1>File size:</h1>
-            <h3>{{ viewData?.size }}</h3>
+            <h3>{{ getFileSize(viewData) }}</h3>
           </div>
           <div class="mb-3">
             <h1>Tags:</h1>
@@ -64,17 +76,17 @@
         </div>
       </div>
       <div class="main-content w-4/6 flex justify-center text-white">
-        <ng-container [ngSwitch]="checkFileType(viewData?.name)">
+        <ng-container [ngSwitch]="checkFileType(viewData.name)">
           <div class="img-container" *ngSwitchCase="'photo'">
             <img
               id="imgLoading"
-              [src]="viewData?.url"
+              [src]="viewData.url"
               onerror="this.onerror=null;this.src='assets/icons8-image-100.png'"
               class="image"
               loading="lazy"
             />
             <div class="middle">
-              <a [href]="viewData?.url" target="_blank" class="text"
+              <a [href]="viewData.url" target="_blank" class="text"
                 >Full Image</a
               >
             </div>
@@ -181,7 +193,7 @@
           ></hero-icon>
           <p>Update</p>
         </button>
-        <a [href]="viewData?.url" target="blank" [download]="viewData?.name">
+        <a [href]="viewData.url" target="blank" [download]="viewData.name">
           <hero-icon
             name="download"
             type="solid"
@@ -189,7 +201,7 @@
           ></hero-icon>
           <p>Download</p>
         </a>
-        <button (click)="showConfirm(viewData?.id)">
+        <button (click)="showConfirm(viewData.id)">
           <hero-icon
             name="trash"
             type="solid"

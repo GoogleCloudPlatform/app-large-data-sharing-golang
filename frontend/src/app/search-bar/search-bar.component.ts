@@ -1,3 +1,16 @@
+// Copyright 2023 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { MatChipInputEvent } from '@angular/material/chips';
 import { SPACE, ENTER } from '@angular/cdk/keycodes';
@@ -11,7 +24,7 @@ import { Subscription } from 'rxjs';
   styleUrls: ['./search-bar.component.scss']
 })
 export class SearchBarComponent {
-  @Output() clicked: EventEmitter<any> = new EventEmitter();
+  @Output() clicked: EventEmitter<ClickedEvent> = new EventEmitter();
   @Input() formGroup: FormGroup | undefined;
   tags: string[] = [];
   private tagsSubscription: Subscription = new Subscription;
@@ -20,7 +33,7 @@ export class SearchBarComponent {
 
   }
   ngOnInit() {
-    this.tags = this.mainService.tags;
+    this.tags = this.mainService.getTags();
     this.tagsSubscription = this.mainService.tagsSubject.subscribe(
       (tags: string[]) => {
         this.tags = tags;
@@ -64,4 +77,9 @@ export class SearchBarComponent {
     }
   }
 
+}
+
+type ClickedEvent = {
+  eventName: string;
+  tags: string[];
 }

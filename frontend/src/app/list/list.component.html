@@ -1,3 +1,15 @@
+<!--
+Copyright 2023 Google LLC
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    https://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
 <app-header (refreshToHome)="refreshHome()"></app-header>
 <div class="px-3 py-1">
   <div class="container m-auto max-w-screen-lg">
@@ -11,7 +23,7 @@
           title="upload"
           (click)="toggleUploadFile()"
           type="button"
-          class="w-1/12 rounded-r bg-purple-500 hover:bg-purple-400 text-white font-bold py-2 px-4 text-xs text-center"
+          class="w-1/12 limit-height rounded-r bg-purple-500 hover:bg-purple-400 text-white font-bold py-2 px-4 text-xs text-center"
         >
           <hero-icon name="upload" class="h-7 mx-auto"></hero-icon>
         </button>
@@ -19,7 +31,7 @@
     </div>
 
     <ng-container *ngIf="list$ | async as listData">
-    <ng-container *ngIf="listData?.length > 0; else nodata">
+    <ng-container *ngIf="listData.length > 0; else nodata">
       <div class="grid grid-cols-5 justify-between text-white">
         <div
           class="group shadow shadow-slate-700 rounded text-center relative overflow-hidden bg-slate-400 mx-1 my-1 max-h-[300px]"

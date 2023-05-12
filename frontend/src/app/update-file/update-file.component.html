@@ -1,4 +1,15 @@
-
+<!--
+Copyright 2023 Google LLC
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    https://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
 <div class="fixed inset-0 bg-black bg-opacity-50" (click)="closeModal($event)">
   <div class="fixed inset-0 flex items-center justify-center z-50">
     <div
@@ -19,11 +30,11 @@
       <h2 class="text-2xl mb-6 text-center">Update Files</h2>
       <div class="flex justify-between">
         <div class="flex-[1_1_60%] p-3">
-          <ng-container [ngSwitch]="checkFileType(updateItem?.name)">
+          <ng-container [ngSwitch]="checkFileType(updateItem.name)">
             <div class="img-container" *ngSwitchCase="'photo'">
               <img
               id = "imgLoading"
-              [src]="updateItem?.url"
+              [src]="updateItem.url"
               onerror="this.onerror=null;this.src='assets/icons8-image-100.png'"
               class="image"
               loading="lazy"
@@ -55,7 +66,7 @@
               <hero-icon name="document" class="h-16 m-auto mb-5"></hero-icon>
             </div>
           </ng-container>
-          <div class="text-center mt-2">{{updateItem?.name}}</div>
+          <div class="text-center mt-2">{{updateItem.name}}</div>
         </div>
         <div class="tags-section mb-4 flex-[1_1_30%] p-3">
           <label for="tags-input" class="block mb-2">Add Tags:</label>
@@ -91,14 +102,15 @@
       <div class="flex justify-end">
         <button
           (click)="closeModal($event)"
+          [disabled]="isUpdating"
           class="border border-gray-500 text-gray-500 px-4 py-2 rounded hover:bg-gray-500 hover:text-black"
         >
           Cancel
         </button>
         <button
         (click)="triggerFileInput()"
-        [disabled]="selectedFiles.length > 1"
-        class="bg-blue-500 text-white px-4 py-2 rounded ml-2 relative min-w-[60px] hover:bg-blue-400"
+        [disabled]="selectedFiles.length > 1 || isUpdating"
+        class="bg-blue-500 text-white px-4 py-2 rounded ml-2 relative min-w-[60px] hover:bg-blue-400 disabled:bg-gray-500"
       >
         Edit File
       </button>
@@ -107,15 +119,21 @@
       type="file"
       class="hidden"
       multiple
-      [disabled] = "selectedFiles.length > 1"
+      [disabled]="selectedFiles.length > 1"
       (change)="addFiles($event)"
       placeholder="Add Files"
     />
         <button
+          [disabled]="isUpdating"
           (click)="update()"
           class="bg-amber-500 text-white px-4 py-2 rounded ml-2 hover:bg-amber-400 relative min-w-[60px] disabled:bg-gray-500"
         >
-          Update
+        <span
+        *ngIf="isUpdating"
+        class="animate-spin w-4 h-4 border-t-2 border-l-2 border-white rounded-full absolute inset-0 m-auto"
+        ></span>
+        <ng-container *ngIf="!isUpdating">Update</ng-container>
+
         </button>
       </div>
     </div>

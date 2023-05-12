@@ -1,3 +1,16 @@
+// Copyright 2023 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 import { Component, inject } from '@angular/core';
 import { ActivatedRoute, Router } from "@angular/router";
 import { Observable, of, map, tap, Subject, take, takeUntil, throttleTime, fromEvent, catchError, EMPTY } from 'rxjs';
@@ -18,10 +31,10 @@ export class ListComponent {
   tags: string[] = [];
   private tagsSubscription: Subscription = new Subscription;
   showUpdate: boolean = false;
-  updateItem: any;
+  updateItem: FileModel | null = null; 
   deleteId: string = '';
   private fileSubject = new Subject<FileModel[]>();
-  list$: Observable<any> = of([]);
+  list$: Observable<FileModel[]> = of([]);
   listArr: FileModel[] = [];
   fileForm = this.fb.group({
     files: ['', Validators.required],
@@ -45,7 +58,7 @@ export class ListComponent {
 
   ngOnInit(): void {
     this.list$ = this.fileSubject.asObservable();
-    this.tags = this.mainService.tags;
+    this.tags = this.mainService.getTags();
     this.tagsSubscription = this.mainService.tagsSubject.subscribe(
       (tags: string[]) => {
         this.tags = tags;
@@ -91,9 +104,7 @@ export class ListComponent {
     this.onUploadFile = !this.onUploadFile;
     this.onUploadFile ? document.body.style.overflow = "hidden" : document.body.style.overflow = "auto";
     if (uploadSucess) {
-      /* NEED TO CHANGE after service done
-       * need to clear ${this.tags} and resfresh homePage if upload is suscess
-       */
+      // clear ${this.tags} and refresh homePage if upload is suscess
       this.refreshHome();
     }
   }
@@ -101,10 +112,9 @@ export class ListComponent {
     this.clearTag();
     this.searchTags();
   }
-  selectUpdate(item: string) {
+  selectUpdate(item: FileModel) {
     this.updateItem = item;
     this.showUpdate = true;
-
   }
   searchTags(showMore: boolean = false, clear: boolean = true) {
     this.showLoader = true;
