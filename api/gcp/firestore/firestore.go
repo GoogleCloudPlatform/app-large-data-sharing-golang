@@ -133,7 +133,7 @@ var Service service = new(firestoreService)
 type firestoreService struct {
 }
 
-// NewClient creates the client for firestore handling.
+// NewClientWithDatabase creates the client for firestore handling.
 func (*firestoreService) NewClientWithDatabase(ctx context.Context) (Client, error) {
 	client, err := firestore.NewClientWithDatabase(ctx, config.Config.LDSProject, config.Config.LDSFirestoreDatabase)
 	if err != nil {

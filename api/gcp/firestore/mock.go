@@ -28,7 +28,7 @@ func MockService() (*MockedService, *MockedClient) {
 	client.On("Close").Return(nil)
 
 	svc := &MockedService{originalService: Service}
-	svc.On("NewClient", mock.Anything).Return(client, nil)
+	svc.On("NewClientWithDatabase", mock.Anything).Return(client, nil)
 	Service = svc
 	return svc, client
 }
@@ -39,7 +39,7 @@ type MockedService struct {
 	originalService service
 }
 
-// NewClient returns the mocked client for unit test.
+// NewClientWithDatabase returns the mocked client for unit test.
 func (m *MockedService) NewClientWithDatabase(ctx context.Context) (Client, error) {
 	result := m.Called(ctx)
 	client, ok := result.Get(0).(*MockedClient)
