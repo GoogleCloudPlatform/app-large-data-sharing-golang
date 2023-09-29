@@ -40,7 +40,7 @@ type MockedService struct {
 }
 
 // NewClient returns the mocked client for unit test.
-func (m *MockedService) NewClient(ctx context.Context) (Client, error) {
+func (m *MockedService) NewClientWithDatabase(ctx context.Context) (Client, error) {
 	result := m.Called(ctx)
 	client, ok := result.Get(0).(*MockedClient)
 	if !ok {
