@@ -56,6 +56,7 @@ func init() {
 		LDSRestPort:              getEnv("LDS_REST_PORT", "8000"),
 		LDSProject:               getEnv("LDS_PROJECT", ""),
 		LDSBucket:                getEnv("LDS_BUCKET", "lds_data"),
+		LDSFirestoreDatabase:     getEnv("LDS_FIRESTORE_DATABASE", "(default)"),
 		LDSFirestoreCollection:   getEnv("LDS_FIRESTORE_COLLECTION", "fileMetadata"),
 		LDSFirestoreFieldPath:    getEnv("LDS_FIRESTORE_FIELD_PATH", "path"),
 		LDSFirestoreFieldName:    getEnv("LDS_FIRESTORE_FIELD_NAME", "name"),
